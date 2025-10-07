@@ -23,6 +23,7 @@
 2. **02-implementation-checklist.md** - Пошаговый чеклист реализации (2-3 недели)
 3. **03-api-examples.md** - Примеры API запросов/ответов
 4. **04-api-key-authentication-simplified.md** - Упрощенная API Key аутентификация для MVP
+5. **05-courier-without-transport.md** - Назначение курьера БЕЗ транспортного средства
 
 ---
 

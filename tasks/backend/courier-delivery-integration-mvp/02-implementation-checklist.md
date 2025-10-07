@@ -405,7 +405,73 @@
   - [ ] Обновление JSON с возвращенными количествами
   - [ ] Автоматический расчет статуса (PARTIALLY_RETURNED)
 
-### 3.2 Дополнение DriverController
+### 3.2 Назначение курьера БЕЗ транспорта (критично!)
+
+**Проблема**: В текущей FLT системе водитель назначается только через `Transport`. Для курьерской доставки нужно назначать курьера напрямую (без ТС).
+
+**Решение**: Использовать существующее поле `Transportation.executorEmployee`
+
+- [ ] Добавить метод в `ExecutorService`:
+  ```java
+  @Transactional
+  public void assignCourierToTransportation(Long transportationId, Long courierId) {
+    // Проверка что это COURIER_DELIVERY
+    // Назначение через executorEmployee (не через transport!)
+    transportation.setExecutorEmployee(courier);
+    transportation.setTransport(null); // без ТС
+    transportation.setStatus(WAITING_DRIVER_CONFIRMATION);
+  }
+  ```
+
+- [ ] Добавить опциональный метод (курьер С транспортом):
+  ```java
+  public void assignCourierWithTransportToTransportation(
+      Long transportationId, Long courierId, Long transportId) {
+    // Назначение И курьера И транспорта
+    transportation.setExecutorEmployee(courier);
+    transportation.setTransport(transport); // опционально
+  }
+  ```
+
+- [ ] Добавить endpoints в `ExecutorController`:
+  ```java
+  @PostMapping("/{id}/assign-courier")
+  ResponseEntity<Void> assignCourier(@PathVariable Long id, 
+                                     @RequestBody AssignCourierRequest req)
+  
+  @PostMapping("/{id}/assign-courier-with-transport") 
+  ResponseEntity<Void> assignCourierWithTransport(...)
+  ```
+
+- [ ] Обновить `DriverService.getOrders()`:
+  ```java
+  // Для COURIER_DELIVERY искать по executorEmployee
+  // Для FLT искать по transport.employeeLinks (как было)
+  Predicate courierPredicate = cb.and(
+    cb.equal(root.get("transportationType"), COURIER_DELIVERY),
+    cb.equal(root.get("executorEmployee").get("id"), currentEmployeeId)
+  );
+  ```
+
+- [ ] Добавить валидацию:
+  ```java
+  // Для COURIER_DELIVERY обязателен executorEmployee
+  // Для FLT обязателен transport
+  if (COURIER_DELIVERY.equals(type) && executorEmployee == null) {
+    throw new ValidationException("Courier required");
+  }
+  ```
+
+- [ ] Unit тесты:
+  - [ ] Назначение курьера без ТС
+  - [ ] Назначение курьера с ТС
+  - [ ] Ошибка при назначении на FLT
+  - [ ] Курьер видит свои заявки
+
+**Время**: 4-6 часов  
+**См. детали**: `05-courier-without-transport.md`
+
+### 3.3 Дополнение DriverController
 
 - [ ] Добавить метод в `kz.coube.backend.driver.api.DriverController`:
   ```java
