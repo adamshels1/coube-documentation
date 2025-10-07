@@ -23,6 +23,7 @@
 
 ## Структура документации
 
+### Полная документация (изначальный план)
 1. **01-database-changes.md** - Изменения в структуре БД
 2. **02-api-incoming-waybills.md** - API для приема маршрутных листов от внешних систем
 3. **03-api-outgoing-results.md** - API для отправки результатов внешним системам
@@ -32,6 +33,11 @@
 7. **07-implementation-checklist.md** - Чеклист реализации
 8. **08-api-key-authentication.md** - API Key аутентификация (простой вариант)
 9. **09-universal-marketplace-api.md** - Объяснение универсальности API
+
+### ⭐ MVP документация (упрощенный план с переиспользованием)
+**Перенесена в отдельную папку**: `/coube-documentation/tasks/backend/courier-delivery-integration-mvp/`
+
+**Рекомендация**: Для быстрой реализации MVP (2-3 недели) используйте документацию из папки `courier-delivery-integration-mvp`
 
 ## Источники
 
