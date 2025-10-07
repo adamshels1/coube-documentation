@@ -32,34 +32,31 @@ sequenceDiagram
     participant Results as Results Service
 
     TEEZ->>API: 1. POST /integration/waybills
-    Note over API: Status: IMPORTED<br/>(непровалидированный черновик)
+    Note over API: Status: FORMING<br/>(черновик)
     
-    Logist->>API: 2. GET /courier/waybills
-    Note over Logist: Видит список маршрутов
+    Logist->>API: 2. GET /executor/transportations
+    Note over Logist: Список маршрутов<br/>(фильтр COURIER_DELIVERY)
     
-    Logist->>API: 3. GET /courier/waybills/{id}
+    Logist->>API: 3. GET /executor/transportations/{id}
     Note over Logist: Открывает детали
     
-    Logist->>API: 4. PUT /courier/waybills/{id}
-    Note over Logist: Редактирует точки<br/>(добавляет/удаляет)
+    Logist->>API: 4. PUT /executor/transportations/{id}/route
+    Note over Logist: Редактирует маршрут
     
-    Logist->>API: 5. POST /courier/waybills/{id}/validate
-    Note over API: Status: VALIDATED<br/>(провалидированный черновик)
+    Logist->>API: 5. POST /executor/transportations/{id}/save
+    Note over API: Status: SIGNED_CUSTOMER<br/>(сохранен, провалидирован)
     
-    Logist->>API: 6. POST /courier/waybills/{id}/assign
-    Note over API: Status: ASSIGNED<br/>Курьер назначен
+    Logist->>API: 6. POST /executor/{id}/assign-courier
+    Note over API: Status: WAITING_DRIVER_CONFIRMATION<br/>Курьер назначен
     
     Courier->>API: 7. GET /driver/orders
     Note over Courier: Видит свои маршруты
     
     Courier->>API: 8. Выполняет доставку
-    Note over API: Status: IN_ROUTE → COMPLETED
+    Note over API: Status: DRIVER_ACCEPTED → ON_THE_WAY → FINISHED
     
-    Logist->>API: 9. POST /courier/waybills/{id}/close
-    Note over API: Status: CLOSED
-    
-    Results->>TEEZ: 10. POST /api/waybill/results
-    Note over TEEZ: Получает результаты
+    Results->>TEEZ: 9. POST /api/waybill/results
+    Note over TEEZ: Автоматически при FINISHED
 ```
 
 ---
@@ -154,13 +151,13 @@ transportation.setTransport(transport);
 - Назначение курьера
 - Закрытие маршрута
 
-**5 новых endpoints** для логиста:
+**Endpoints для логиста** (используем существующие пути):
 ```
-GET    /api/v1/courier/waybills
-GET    /api/v1/courier/waybills/{id}
-PUT    /api/v1/courier/waybills/{id}
-POST   /api/v1/courier/waybills/{id}/validate
-POST   /api/v1/courier/waybills/{id}/close
+GET    /api/v1/executor/transportations              # Список (фильтр COURIER_DELIVERY)
+GET    /api/v1/executor/transportations/{id}         # Детали
+PUT    /api/v1/executor/transportations/{id}/route   # Редактирование
+POST   /api/v1/executor/transportations/{id}/save    # Сохранение с валидацией
+POST   /api/v1/executor/{id}/assign-courier          # Назначение курьера
 ```
 
 ---
@@ -200,15 +197,15 @@ POST   /api/v1/courier/waybills/{id}/close
 - ✅ Просмотр списка маршрутов
 - ✅ Открытие деталей маршрута
 - ✅ Редактирование точек (добавление/удаление)
-- ✅ Валидация: геокодирование, последняя точка = склад
-- ✅ Статус: IMPORTED → VALIDATED
+- ✅ Сохранение с валидацией: геокодирование адресов, временные окна, последняя точка = склад
+- ✅ Статус: FORMING → SIGNED_CUSTOMER
 - ✅ Роль: LOGISTICIAN
 
 ### Логист (назначение курьера)
-- ✅ POST /api/v1/courier/waybills/{id}/assign
+- ✅ POST /api/v1/executor/{id}/assign-courier
 - ✅ Назначение БЕЗ транспорта (пешком/на своем авто)
 - ✅ Назначение С транспортом (опционально)
-- ✅ Статус: VALIDATED → ASSIGNED
+- ✅ Статус: SIGNED_CUSTOMER → WAITING_DRIVER_CONFIRMATION
 
 ### Курьер (мобильное приложение)
 - ✅ Видит свои маршруты через DriverController
@@ -219,14 +216,9 @@ POST   /api/v1/courier/waybills/{id}/close
 - ✅ SOS функционал (переиспользуется)
 - ✅ Геолокация (переиспользуется)
 
-### Логист (закрытие)
-- ✅ POST /api/v1/courier/waybills/{id}/close
-- ✅ Статус: COMPLETED → CLOSED
-- ✅ Автоматическая отправка результатов в TEEZ
-
 ### Отправка результатов в TEEZ
 - ✅ POST {teez_api_url}/api/waybill/results
-- ✅ Синхронная отправка при закрытии
+- ✅ Автоматическая отправка при статусе FINISHED
 - ✅ Логирование
 - ✅ Показ ошибок логисту
 

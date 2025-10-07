@@ -103,10 +103,9 @@ transportation.setTransportationType(TransportationType.COURIER_DELIVERY);
 - Список маршрутных листов
 - Просмотр деталей маршрута
 - **Редактирование маршрута** (добавление/удаление точек)
-- **Валидация маршрута** (переход в статус "провалидирован")
+- **Сохранение с валидацией** (геокодирование, проверки, статус SIGNED_CUSTOMER)
 - Назначение курьера на маршрут
 - Мониторинг выполнения
-- Закрытие маршрута
 
 ✅ **Отправка результатов в TEEZ**
 - Синхронная отправка при закрытии маршрута
@@ -120,8 +119,6 @@ transportation.setTransportationType(TransportationType.COURIER_DELIVERY);
 ### Что НЕ включено (можно добавить позже):
 
 ❌ Асинхронная отправка результатов с retry  
-❌ Сложная валидация маршрутов  
-❌ Геокодирование адресов  
 ❌ Управление складами через admin UI  
 ❌ Детальная аналитика и отчеты  
 ❌ История изменений маршрутов  
@@ -162,22 +159,23 @@ transportation.setTransportationType(TransportationType.COURIER_DELIVERY);
 1. TEEZ → Coube: POST /api/v1/integration/waybills
    ├── Импорт маршрутного листа
    ├── Создание Transportation с типом COURIER_DELIVERY
+   ├── Создание рейса через TransportationRouteService.createInitialRoute()
    ├── Создание точек маршрута (CargoLoadingHistory)
    ├── Создание заказов (CourierRouteOrder)
-   └── Статус: IMPORTED (импортированный непровалидированный черновик)
+   └── Статус: FORMING (черновик)
 
 2. Логист (через веб) - РЕДАКТИРОВАНИЕ:
-   ├── GET /api/v1/courier/waybills → список маршрутных листов
-   ├── GET /api/v1/courier/waybills/{id} → детали маршрута
-   ├── PUT /api/v1/courier/waybills/{id} → редактирование (добавление/удаление точек)
-   ├── POST /api/v1/courier/waybills/{id}/validate → валидация маршрута
-   ├── Статус: IMPORTED → VALIDATED (провалидированный черновик)
-   └── Проверка: адреса геокодированы, последняя точка - склад
+   ├── GET /api/v1/executor/transportations → список маршрутов (фильтр COURIER_DELIVERY)
+   ├── GET /api/v1/executor/transportations/{id} → детали маршрута
+   ├── PUT /api/v1/executor/transportations/{id}/route → редактирование маршрута
+   ├── POST /api/v1/executor/transportations/{id}/save → сохранение с валидацией
+   ├── Статус: FORMING → SIGNED_CUSTOMER (сохранен после валидации)
+   └── Валидация: геокодирование адресов, временные окна, последняя точка = склад
 
 3. Логист - НАЗНАЧЕНИЕ КУРЬЕРА:
-   ├── POST /api/v1/courier/waybills/{id}/assign
+   ├── POST /api/v1/executor/{id}/assign-courier
    ├── Выбор курьера (без ТС или с ТС)
-   └── Статус: VALIDATED → ASSIGNED
+   └── Статус: SIGNED_CUSTOMER → WAITING_DRIVER_CONFIRMATION
 
 4. Курьер (через мобильное приложение):
    ├── GET /api/v1/driver/orders → видит свои маршруты
@@ -190,12 +188,11 @@ transportation.setTransportationType(TransportationType.COURIER_DELIVERY);
    │   │   ├── Загрузка фото (если требуется)
    │   │   └── Статус: DELIVERED / RETURNED / NOT_DELIVERED
    │   └── PUT /orders/{id}/departure → отбытие
-   └── Статус: ASSIGNED → IN_ROUTE → COMPLETED
-      TransportationStatus: ON_THE_WAY → FINISHED
+   └── Статус: WAITING_DRIVER_CONFIRMATION → DRIVER_ACCEPTED → ON_THE_WAY → FINISHED
 
-5. Логист - ЗАКРЫТИЕ МАРШРУТА:
-   ├── POST /api/v1/courier/waybills/{id}/close
-   └── Статус: COMPLETED → CLOSED
+5. Автоматическая отправка результатов:
+   ├── При переходе в статус FINISHED
+   └── Coube → TEEZ автоматически
 
 6. Coube → TEEZ: POST {teez_api_url}/api/waybill/results
    ├── Отправка результатов по всем заказам (автоматически при закрытии)

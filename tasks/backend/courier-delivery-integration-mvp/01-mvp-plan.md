@@ -83,19 +83,8 @@ public class Transportation extends BaseIdEntity {
   @Column(name = "external_waybill_id")
   private String externalWaybillId; // ID маршрутного листа из внешней системы
   
-  @Column(name = "courier_validation_status")
-  @Enumerated(EnumType.STRING)
-  private CourierValidationStatus courierValidationStatus; // imported, validated, assigned, closed
-}
-```
-
-**Новый Enum**:
-```java
-public enum CourierValidationStatus {
-  IMPORTED,    // Импортирован из внешней системы
-  VALIDATED,   // Провалидирован логистом
-  ASSIGNED,    // Назначен курьеру
-  CLOSED       // Закрыт логистом
+  // Используем СУЩЕСТВУЮЩИЙ TransportationStatus для статусов!
+  // FORMING → SIGNED_CUSTOMER → WAITING_DRIVER_CONFIRMATION → DRIVER_ACCEPTED → ON_THE_WAY → FINISHED
 }
 ```
 
@@ -524,9 +513,9 @@ public class CourierIntegrationService {
           .findByExternalWaybillId(request.getSourceSystem(), request.getWaybill().getId());
       
       if (existing.isPresent()) {
-        // Если статус imported - можно обновить, иначе - locked
+        // Если статус FORMING - можно обновить, иначе - locked
         Transportation t = existing.get();
-        if (!CourierValidationStatus.IMPORTED.equals(t.getCourierValidationStatus())) {
+        if (!TransportationStatus.FORMING.equals(t.getStatus())) {
           throw new BusinessException("Waybill already processed and cannot be updated");
         }
         // Обновляем существующий
@@ -538,9 +527,15 @@ public class CourierIntegrationService {
       transportation.setTransportationType(TransportationType.COURIER_DELIVERY);
       transportation.setSourceSystem(request.getSourceSystem());
       transportation.setExternalWaybillId(request.getWaybill().getId());
-      transportation.setCourierValidationStatus(CourierValidationStatus.IMPORTED);
-      transportation.setStatus(TransportationStatus.FORMING);
+      transportation.setStatus(TransportationStatus.FORMING); // Черновик
       transportation.setFillingStep(TransportationFillingStep.ROUTE); // Маршрут заполняется из импорта
+      
+      // Создаем рейс через существующий сервис
+      TransportationRouteHistory route = transportationRouteService.createInitialRoute(
+          transportation,
+          cargoLoadingRequests
+      );
+      transportation.setCurrentRouteHistory(route);
       
       // TODO: заполнить организацию заказчика (определить по source_system)
       // transportation.setCustomerOrganization(...);
@@ -699,7 +694,7 @@ public class CourierIntegrationController {
     Transportation transportation = courierIntegrationService.importWaybill(request);
     
     WaybillImportResponse response = WaybillImportResponse.builder()
-        .status(transportation.getCourierValidationStatus().name())
+        .status(transportation.getStatus().name()) // FORMING
         .transportationId(transportation.getId())
         .externalWaybillId(transportation.getExternalWaybillId())
         .createdAt(transportation.getCreatedAt())

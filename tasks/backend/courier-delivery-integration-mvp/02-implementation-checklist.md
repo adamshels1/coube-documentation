@@ -33,8 +33,8 @@
 - [ ] **V2025_01_20_02__add_courier_fields_to_transportation.sql**
   - [ ] `source_system TEXT`
   - [ ] `external_waybill_id TEXT`
-  - [ ] `courier_validation_status TEXT DEFAULT 'imported'`
   - [ ] Индексы на внешние ключи
+  - [ ] НЕ ДОБАВЛЯЕМ courier_validation_status (используем существующий TransportationStatus!)
 
 - [ ] **V2025_01_20_03__add_courier_fields_to_cargo_loading.sql**
   - [ ] `is_sms_required BOOLEAN`
@@ -73,15 +73,9 @@
   }
   ```
 
-- [ ] **CourierValidationStatus.java** (новый)
-  ```java
-  public enum CourierValidationStatus {
-    IMPORTED,    // Импортирован из внешней системы
-    VALIDATED,   // Провалидирован логистом
-    ASSIGNED,    // Назначен курьеру
-    CLOSED       // Закрыт логистом
-  }
-  ```
+- [ ] **НЕ СОЗДАЕМ** CourierValidationStatus!
+  - Используем существующий `TransportationStatus`
+  - FORMING → SIGNED_CUSTOMER → WAITING_DRIVER_CONFIRMATION → DRIVER_ACCEPTED → ON_THE_WAY → FINISHED
 
 - [ ] **CourierOrderStatus.java** (новый)
   ```java
@@ -127,9 +121,7 @@
   @Column(name = "external_waybill_id")
   private String externalWaybillId;
   
-  @Column(name = "courier_validation_status")
-  @Enumerated(EnumType.STRING)
-  private CourierValidationStatus courierValidationStatus;
+  // НЕ ДОБАВЛЯЕМ courierValidationStatus - используем существующий status!
   ```
 
 - [ ] **CargoLoadingHistory.java**: Добавить поля
@@ -562,14 +554,14 @@
 ### 3.6 Интеграция с логистом (использование существующего UI)
 
 - [ ] Проверить, что `TransportationService` поддерживает:
-  - [ ] Назначение водителя на Transportation с типом COURIER_DELIVERY
-  - [ ] Обновление статуса на CLOSED
+  - [ ] Назначение курьера на Transportation с типом COURIER_DELIVERY
+  - [ ] Обновление статуса на FINISHED
 
-- [ ] Добавить вызов `CourierResultsService.sendResultsSync()` при закрытии:
+- [ ] Добавить вызов `CourierResultsService.sendResultsSync()` при завершении:
   ```java
   // В TransportationService или отдельном listener
   if (TransportationType.COURIER_DELIVERY.equals(transportation.getTransportationType()) 
-      && CourierValidationStatus.CLOSED.equals(transportation.getCourierValidationStatus())) {
+      && TransportationStatus.FINISHED.equals(transportation.getStatus())) {
     courierResultsService.sendResultsSync(transportation.getId());
   }
   ```
