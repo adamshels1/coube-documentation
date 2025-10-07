@@ -219,7 +219,84 @@
 - [ ] **OrderStatusDto.java**
 - [ ] **ValidationError.java**
 
-### 2.2 CourierIntegrationService
+### 2.2 API Key аутентификация (упрощенная)
+
+**Цель**: Простая защита Integration API без БД и Admin UI
+
+- [ ] Создать `CourierIntegrationProperties`
+  ```java
+  @Component
+  @ConfigurationProperties("courier.integration")
+  public class CourierIntegrationProperties {
+    private String apiKey; // Статический из env
+    private TeezConfig teez;
+  }
+  ```
+
+- [ ] Создать `CourierApiKeyFilter`
+  ```java
+  @Component
+  public class CourierApiKeyFilter extends OncePerRequestFilter {
+    // Проверяет X-API-Key header
+    // Простое сравнение: properties.getApiKey().equals(apiKey)
+    // Применяется только к /api/v1/integration/**
+  }
+  ```
+
+- [ ] Обновить `SecurityConfig`
+  ```java
+  .addFilterBefore(courierApiKeyFilter, UsernamePasswordAuthenticationFilter.class)
+  .requestMatchers("/api/v1/integration/**")
+  .hasAuthority("SCOPE_courier:integration")
+  ```
+
+- [ ] Добавить в `application.yml`
+  ```yaml
+  courier:
+    integration:
+      api-key: ${COURIER_API_KEY:dev-test-key}
+      teez:
+        api-url: ${TEEZ_API_URL}
+        endpoint: /api/waybill/results
+  ```
+
+- [ ] Генерировать production ключ
+  ```bash
+  openssl rand -base64 32
+  # coube_xJ3mK9pLqR8sT2vW5yZ7aB1cD4eF6gH9iJ0kL3mN5oP8qR
+  ```
+
+- [ ] Создать Kubernetes Secret
+  ```yaml
+  apiVersion: v1
+  kind: Secret
+  metadata:
+    name: courier-api-key
+  stringData:
+    api-key: coube_prod_xJ3mK9pLqR8sT2vW5yZ7aB1cD4eF6gH9iJ0kL3mN5oP8qR
+  ```
+
+- [ ] Unit тесты:
+  - [ ] Тест с валидным ключом → success
+  - [ ] Тест с невалидным ключом → 401
+  - [ ] Тест без ключа → 401
+
+- [ ] Integration тест
+  ```java
+  @Test
+  void shouldAllow_whenValidApiKey() {
+    mockMvc.perform(post("/api/v1/integration/waybills")
+      .header("X-API-Key", validApiKey))
+      .andExpect(status().isOk());
+  }
+  ```
+
+- [ ] Передать API ключ TEEZ команде (через защищенный канал: 1Password/LastPass)
+
+**Время**: 2-4 часа  
+**См. детали**: `04-api-key-authentication-simplified.md`
+
+### 2.3 CourierIntegrationService
 
 - [ ] Создать `kz.coube.backend.courier.service.CourierIntegrationService`
 
@@ -531,7 +608,8 @@
 - [ ] 1 новый Controller
 - [ ] 1 метод в существующий Controller
 - [ ] ~15 DTO классов
-- [ ] Security Filter для API Key
+- [ ] 1 Config Properties класс (CourierIntegrationProperties)
+- [ ] 1 Security Filter (CourierApiKeyFilter) - упрощенный без БД
 
 ### Tests
 - [ ] 10+ Unit tests

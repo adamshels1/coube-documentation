@@ -900,6 +900,211 @@ public class CourierResultsService {
 
 ---
 
+## 🔐 API Key аутентификация (упрощенная для MVP)
+
+### Подход: Статический ключ в конфигурации
+
+**Не используем** сложную систему с БД и Admin UI. Вместо этого:
+
+### 1. Config Properties
+
+```java
+package kz.coube.backend.courier.config;
+
+@Component
+@ConfigurationProperties(prefix = "courier.integration")
+@Data
+public class CourierIntegrationProperties {
+    
+    private String apiKey; // Статический ключ из environment variable
+    private TeezConfig teez = new TeezConfig();
+    
+    @Data
+    public static class TeezConfig {
+        private boolean enabled = true;
+        private String apiUrl;
+        private String endpoint;
+    }
+}
+```
+
+### 2. Simple Security Filter
+
+```java
+package kz.coube.backend.courier.security;
+
+@Component
+@RequiredArgsConstructor
+@Slf4j
+public class CourierApiKeyFilter extends OncePerRequestFilter {
+    
+    private final CourierIntegrationProperties properties;
+    private static final String API_KEY_HEADER = "X-API-Key";
+    private static final String INTEGRATION_PATH_PREFIX = "/api/v1/integration/";
+    
+    @Override
+    protected void doFilterInternal(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain) throws ServletException, IOException {
+        
+        String path = request.getRequestURI();
+        
+        // Применяем только к integration endpoints
+        if (!path.startsWith(INTEGRATION_PATH_PREFIX)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+        
+        String apiKey = request.getHeader(API_KEY_HEADER);
+        
+        // Проверка наличия ключа
+        if (apiKey == null || apiKey.isBlank()) {
+            log.warn("Missing API key for: {} from IP: {}", path, getClientIp(request));
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "API key is required");
+            return;
+        }
+        
+        // Простая проверка (сравнение строк)
+        if (!properties.getApiKey().equals(apiKey)) {
+            log.warn("Invalid API key for: {} from IP: {}", path, getClientIp(request));
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid API key");
+            return;
+        }
+        
+        // Устанавливаем аутентификацию
+        List<SimpleGrantedAuthority> authorities = List.of(
+            new SimpleGrantedAuthority("ROLE_INTEGRATION"),
+            new SimpleGrantedAuthority("SCOPE_courier:integration")
+        );
+        
+        UsernamePasswordAuthenticationToken authentication = 
+                new UsernamePasswordAuthenticationToken(
+                        "INTEGRATION_API", null, authorities);
+        
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        
+        filterChain.doFilter(request, response);
+    }
+    
+    private String getClientIp(HttpServletRequest request) {
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip == null || ip.isEmpty()) {
+            ip = request.getRemoteAddr();
+        }
+        if (ip != null && ip.contains(",")) {
+            ip = ip.split(",")[0].trim();
+        }
+        return ip;
+    }
+}
+```
+
+### 3. Security Config
+
+```java
+@Configuration
+@EnableWebSecurity
+public class SecurityConfig {
+    
+    @Autowired
+    private CourierApiKeyFilter courierApiKeyFilter;
+    
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        return http
+                // ... existing config
+                
+                // Добавляем фильтр
+                .addFilterBefore(courierApiKeyFilter, UsernamePasswordAuthenticationFilter.class)
+                
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/v1/integration/**")
+                        .hasAuthority("SCOPE_courier:integration")
+                        // ... existing rules
+                )
+                .build();
+    }
+}
+```
+
+### 4. Configuration (application.yml)
+
+```yaml
+courier:
+  integration:
+    # Статический ключ (меняется через environment variable)
+    api-key: ${COURIER_API_KEY:dev-test-key-not-for-production}
+    
+    teez:
+      enabled: true
+      api-url: ${TEEZ_API_URL:https://teez-api.example.com}
+      endpoint: /api/waybill/results
+```
+
+### 5. Production Deployment
+
+**Генерация ключа**:
+```bash
+# Безопасный случайный ключ (32 байта)
+openssl rand -base64 32
+# Результат: xJ3mK9pLqR8sT2vW5yZ7aB1cD4eF6gH9iJ0kL3mN5oP8qR=
+
+# Добавляем префикс
+# coube_xJ3mK9pLqR8sT2vW5yZ7aB1cD4eF6gH9iJ0kL3mN5oP8qR
+```
+
+**Kubernetes Secret**:
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: courier-api-key
+stringData:
+  api-key: coube_prod_xJ3mK9pLqR8sT2vW5yZ7aB1cD4eF6gH9iJ0kL3mN5oP8qR
+```
+
+**Deployment env**:
+```yaml
+env:
+  - name: COURIER_API_KEY
+    valueFrom:
+      secretKeyRef:
+        name: courier-api-key
+        key: api-key
+```
+
+### Преимущества упрощенного подхода
+
+✅ **Быстрая реализация**: 2-4 часа (вместо 2-3 дней)  
+✅ **Без БД**: не нужна таблица `integration_api_keys`  
+✅ **Без Admin UI**: не нужен контроллер управления  
+✅ **Безопасно**: HTTPS + environment variable + логирование  
+✅ **Легко сменить**: просто обновить environment variable  
+
+### Что НЕ включено (можно добавить после MVP)
+
+❌ Хранение в БД с хешированием  
+❌ Множество ключей (для разных маркетплейсов)  
+❌ Admin UI для управления ключами  
+❌ IP whitelist  
+❌ Rate limiting  
+❌ Детальные scopes и права  
+❌ Статистика использования в отдельной таблице  
+
+### Использование TEEZ
+
+```bash
+curl -X POST "https://api.coube.kz/api/v1/integration/waybills" \
+  -H "X-API-Key: coube_prod_xJ3mK9pLqR8sT2vW5yZ7aB1cD4eF6gH9iJ0kL3mN5oP8qR" \
+  -H "Content-Type: application/json" \
+  -d '{"source_system": "TEEZ_PVZ", ...}'
+```
+
+**См. детали**: `04-api-key-authentication-simplified.md`
+
+---
+
 ## ✅ Итоговая статистика
 
 ### Новый код

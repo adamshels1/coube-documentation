@@ -21,7 +21,8 @@
 
 1. **01-mvp-plan.md** - Детальный план MVP с максимальным переиспользованием
 2. **02-implementation-checklist.md** - Пошаговый чеклист реализации (2-3 недели)
-3. **03-api-examples.md** - Примеры API запросов/ответов (создается далее)
+3. **03-api-examples.md** - Примеры API запросов/ответов
+4. **04-api-key-authentication-simplified.md** - Упрощенная API Key аутентификация для MVP
 
 ---
 
@@ -101,6 +102,11 @@ transportation.setTransportationType(TransportationType.COURIER_DELIVERY);
 - Синхронная отправка при закрытии маршрута
 - Логирование всех интеграций
 
+✅ **API Key аутентификация (упрощенная)**
+- Статический ключ в environment variable
+- Простой Security Filter без БД
+- Безопасно и быстро в реализации (2-4 часа)
+
 ### Что НЕ включено (можно добавить позже):
 
 ❌ Асинхронная отправка результатов с retry  
@@ -109,8 +115,10 @@ transportation.setTransportationType(TransportationType.COURIER_DELIVERY);
 ❌ Управление складами через admin UI  
 ❌ Детальная аналитика и отчеты  
 ❌ История изменений маршрутов  
-❌ Rate limiting для API  
 ❌ Поддержка нескольких маркетплейсов (только TEEZ в MVP)  
+❌ Полная система управления API ключами (БД + Admin UI)  
+❌ IP whitelist и rate limiting для API  
+❌ BCrypt хеширование API ключей (простое сравнение строк в MVP)  
 
 ---
 
