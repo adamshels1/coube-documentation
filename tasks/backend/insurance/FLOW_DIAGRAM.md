@@ -21,28 +21,41 @@ sequenceDiagram
     Backend->>InsuranceAPI: CheckClient (руководитель)
     InsuranceAPI-->>Backend: Result: 0 (OK)
     Backend->>DB: Сохранить результаты проверок
-    Backend-->>Frontend: Notification: "Проверка пройдена"
+
+    alt Проверка пройдена (Result = 0)
+        Backend-->>Frontend: Notification: "Проверка пройдена"
+    else Проверка не пройдена (Result ≠ 0)
+        Backend->>DB: Статус: client_check_failed
+        Backend-->>Frontend: Показать модалку с причиной отказа
+        Frontend->>Client: Предложить продолжить БЕЗ страхования
+        Client->>Frontend: Продолжить без страхования
+        Frontend->>Backend: PUT /api/insurance/decline/{policyId}
+        Backend->>DB: Статус: insurance_declined
+    end
 
     Frontend->>Backend: GET /api/insurance/documents/preview/{policyId}
-    Backend->>Backend: Генерация PDF документов
+    Backend->>Backend: Получить данные документов из API для preview
     Backend-->>Frontend: {applicationForm, contract, excludedTerritories}
 
     Frontend->>Client: Показать документы для ознакомления
-    Client->>Frontend: Согласен с условиями + подпись ЭЦП
-    Frontend->>Backend: POST /api/insurance/sign/{policyId}
+    Client->>Frontend: Согласен с условиями + подпись ЭЦП (на фронте)
+    Note over Client,Frontend: Клиент подписывает документы своей ЭЦП<br/>Фронт конвертирует подписанные документы в base64
+    Frontend->>Backend: POST /api/insurance/sign/{policyId} + signed docs (base64)
     Backend->>DB: Сохранить подпись + документы
     Backend->>DB: Обновить статус -> "documents_signed"
 
     Frontend->>Backend: POST /api/insurance/create-contract/{policyId}
-    Backend->>InsuranceAPI: CreateNewDocument (XML данные)
+    Note over Backend: Получить данные из БД:<br/>- Transportation (груз, маршрут)<br/>- CargoLoading (размеры, форма, кузов)<br/>- Справочники (типы груза)
+    Backend->>InsuranceAPI: CreateNewDocument (XML с данными груза и страхования)
     InsuranceAPI-->>Backend: {contractNumber: "ST-2025-012345"}
     Backend->>DB: Обновить contractNumber + статус
 
-    Backend->>InsuranceAPI: SavePicture (документ 1)
+    Note over Backend: Взять подписанные клиентом документы<br/>из предыдущего шага (base64)
+    Backend->>InsuranceAPI: SavePicture (документ 1 - base64)
     InsuranceAPI-->>Backend: OK
-    Backend->>InsuranceAPI: SavePicture (документ 2)
+    Backend->>InsuranceAPI: SavePicture (документ 2 - base64)
     InsuranceAPI-->>Backend: OK
-    Backend->>InsuranceAPI: SavePicture (документ N)
+    Backend->>InsuranceAPI: SavePicture (документ N - base64)
     InsuranceAPI-->>Backend: OK
 
     Note over InsuranceAPI: Страховая подписывает договор
