@@ -4,6 +4,11 @@
 
 Практические примеры вызовов API для интеграции курьерской доставки.
 
+**🔄 Важное обновление**: Интеграция использует **webhook pull-модель** для получения результатов TEEZ:
+- ✅ **TEEZ запрашивает** данные из Coube (раздел 2)
+- ❌ ~~Coube не отправляет данные в TEEZ~~ (устаревшая push-модель)
+- 📌 См. раздел 10 для деталей про webhook-уведомления (опционально)
+
 ---
 
 ## 1. Импорт маршрутного листа от TEEZ
@@ -191,19 +196,21 @@
 
 ---
 
-## 2. Получение статусов заказов
+## 2. Получение статусов заказов (для TEEZ)
 
 ### Request
 
-**Endpoint**: `GET /api/v1/integration/waybills/{externalWaybillId}/orders?source_system=TEEZ_PVZ`  
+**Endpoint**: `GET /api/v1/integration/waybills/{externalWaybillId}/orders?source_system=TEEZ_PVZ`
 **Authentication**: `X-API-Key: {your-api-key}`
+
+**Описание**: TEEZ запрашивает результаты доставки по завершенному маршрутному листу (webhook pull-модель).
 
 ```bash
 curl -X GET "https://api.coube.kz/api/v1/integration/waybills/WB-2025-001/orders?source_system=TEEZ_PVZ" \
   -H "X-API-Key: your-api-key-here"
 ```
 
-### Response
+### Response (Success)
 
 **Status**: `200 OK`
 
@@ -212,6 +219,7 @@ curl -X GET "https://api.coube.kz/api/v1/integration/waybills/WB-2025-001/orders
   "waybill_id": "WB-2025-001",
   "transportation_id": 12345,
   "status": "completed",
+  "completed_at": "2025-01-07T16:00:00Z",
   "orders": [
     {
       "track_number": "TRACK-123456",
@@ -220,6 +228,7 @@ curl -X GET "https://api.coube.kz/api/v1/integration/waybills/WB-2025-001/orders
       "status_reason": null,
       "delivery_datetime": "2025-01-07T10:15:00Z",
       "photo_url": "https://s3.coube.kz/courier/photos/123456.jpg",
+      "sms_code_used": "1234",
       "courier_comment": null,
       "positions": [
         {
@@ -253,7 +262,46 @@ curl -X GET "https://api.coube.kz/api/v1/integration/waybills/WB-2025-001/orders
         }
       ]
     }
+  ],
+  "additional_events": [
+    {
+      "order_external_id": "ORDER-TEEZ-003",
+      "event_type": "previous_order_not_received",
+      "event_datetime": "2025-01-07T15:00:00Z",
+      "comment": "По этому адресу ранее не удалось доставить заказ"
+    }
   ]
+}
+```
+
+### Response (Not Found)
+
+**Status**: `404 Not Found`
+
+```json
+{
+  "error": "WAYBILL_NOT_FOUND",
+  "message": "Waybill with external ID 'WB-2025-001' not found",
+  "external_waybill_id": "WB-2025-001",
+  "source_system": "TEEZ_PVZ"
+}
+```
+
+### Response (Not Completed)
+
+**Status**: `409 Conflict`
+
+**Описание**: Маршрут еще не завершен, данные пока не готовы.
+
+```json
+{
+  "error": "WAYBILL_NOT_COMPLETED",
+  "message": "Waybill is not completed yet",
+  "external_waybill_id": "WB-2025-001",
+  "current_status": "ON_THE_WAY",
+  "completed_points": 2,
+  "total_points": 4,
+  "estimated_completion": "2025-01-07T16:00:00Z"
 }
 ```
 
@@ -585,75 +633,72 @@ curl -X POST "https://api.coube.kz/api/v1/driver/upload-photo" \
 
 ---
 
-## 10. Отправка результатов в TEEZ
+## 10. Webhook-уведомление о готовности результатов (опционально)
 
-### Request (из Coube в TEEZ)
+**⚠️ ВАЖНО**: Это **опциональная** функция. TEEZ может использовать polling (запрашивать раздел 2 периодически) или получать webhook-уведомления.
 
-**Endpoint**: `POST {teez_api_url}/api/waybill/results`  
-**Authentication**: `Bearer {teez-token}` или другая их аутентификация  
+### Вариант А: Polling (без webhook)
+
+TEEZ периодически (каждые 5-10 минут) запрашивает endpoint из раздела 2:
+```bash
+GET /api/v1/integration/waybills/{externalWaybillId}/orders
+```
+
+Пока маршрут не завершен - получает `409 Conflict`.
+Когда завершен - получает `200 OK` с данными.
+
+---
+
+### Вариант Б: Webhook-уведомление (если TEEZ хочет)
+
+Если TEEZ предоставит webhook URL, Coube может отправлять уведомление о готовности данных.
+
+#### Request (из Coube в TEEZ)
+
+**Endpoint**: `POST {teez_webhook_url}/waybill-completed` (URL предоставляет TEEZ)
+**Authentication**: `X-API-Key: {api-key}` (ключ предоставляет TEEZ)
 **Content-Type**: `application/json`
 
 ```json
 {
+  "event": "waybill.completed",
   "waybill_id": "WB-2025-001",
+  "transportation_id": 12345,
   "completed_at": "2025-01-07T16:00:00Z",
-  "delivery_results": [
-    {
-      "track_number": "TRACK-123456",
-      "external_id": "ORDER-TEEZ-001",
-      "status": "delivered",
-      "status_reason": null,
-      "delivery_datetime": "2025-01-07T10:15:00Z",
-      "photo_url": "https://s3.coube.kz/courier/photos/123456.jpg",
-      "courier_comment": null,
-      "positions": [
-        {
-          "code": "POS-001",
-          "name": "Товар 1",
-          "qty": 1,
-          "returned_qty": 0
-        },
-        {
-          "code": "POS-002",
-          "name": "Товар 2",
-          "qty": 1,
-          "returned_qty": 0
-        }
-      ]
-    },
-    {
-      "track_number": "TRACK-123457",
-      "external_id": "ORDER-TEEZ-002",
-      "status": "not_delivered",
-      "status_reason": "customer_not_available",
-      "delivery_datetime": "2025-01-07T14:05:00Z",
-      "photo_url": null,
-      "courier_comment": "Клиент не отвечает на звонки, попробуем завтра",
-      "positions": [
-        {
-          "code": "POS-003",
-          "name": "Документы",
-          "qty": 1,
-          "returned_qty": 1
-        }
-      ]
-    }
-  ]
+  "results_available": true,
+  "results_url": "https://api.coube.kz/api/v1/integration/waybills/WB-2025-001/orders?source_system=TEEZ_PVZ"
 }
 ```
 
-### Response от TEEZ
+#### Response от TEEZ
 
 **Status**: `200 OK`
 
 ```json
 {
-  "status": "accepted",
-  "waybill_id": "WB-2025-001",
-  "processed_orders": 2,
-  "message": "Results received successfully"
+  "status": "received",
+  "message": "Notification received successfully"
 }
 ```
+
+#### Что делает TEEZ после получения webhook:
+
+```bash
+# TEEZ делает запрос за реальными данными:
+GET https://api.coube.kz/api/v1/integration/waybills/WB-2025-001/orders?source_system=TEEZ_PVZ
+X-API-Key: {teez-api-key}
+```
+
+---
+
+### Рекомендация
+
+**Для MVP рекомендуется Вариант А (polling):**
+- ✅ Проще реализовать
+- ✅ Не требует публичного endpoint на стороне TEEZ
+- ✅ Надежнее (нет зависимости от доступности webhook)
+
+**Вариант Б можно добавить позже** для оптимизации.
 
 ---
 
@@ -716,6 +761,7 @@ curl -X POST "https://api.coube.kz/api/v1/driver/upload-photo" \
 
 ---
 
-**Дата создания**: 2025-01-06  
-**Версия**: 1.0  
+**Дата создания**: 2025-01-06
+**Последнее обновление**: 2025-10-16 (webhook pull-модель)
+**Версия**: 1.1
 **Статус**: Ready for Testing

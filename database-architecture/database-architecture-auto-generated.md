@@ -1,6 +1,6 @@
 # Архитектура базы данных Coube
 
-**Дата обновления**: 2025-10-06 17:45:12  
+**Дата обновления**: 2025-10-16 15:19:35  
 **Источник**: Автоматически сгенерировано из Flyway миграций
 
 > ⚠️ **Внимание**: Этот файл создается автоматически. Для ручного редактирования используйте `database-architecture-complete.md`
@@ -144,6 +144,50 @@
 - **created_at** - `TIMESTAMP`NOT NULL DEFAULT
 - **updated_at** - `TIMESTAMP`NOT NULL DEFAULT
 - **created_by** - `TEXT`NOT NULL
+- **updated_by** - `TEXT`NOT NULL
+
+---
+
+#### `applications.applications.courier_integration_log`
+
+- **id** - `BIGSERIAL`PRIMARY KEY PRIMARY KEY
+- **transportation_id** - `BIGINT`
+- **direction** - `TEXT`NOT NULL
+- **source_system** - `TEXT`NOT NULL
+- **http_method** - `TEXT`NOT NULL
+- **endpoint** - `TEXT`NOT NULL
+- **http_status_code** - `INT`
+- **request_payload** - `JSONB`
+- **response_payload** - `JSONB`
+- **status** - `TEXT`NOT NULL
+- **error_message** - `TEXT`
+- **retry_count** - `INT`DEFAULT
+- **request_datetime** - `TIMESTAMP`NOT NULL
+- **response_datetime** - `TIMESTAMP`
+- **created_at** - `TIMESTAMP`NOT NULL DEFAULT
+- **created_by** - `TEXT`NOT NULL
+- **updated_at** - `TIMESTAMP`NOT NULL DEFAULT
+- **updated_by** - `TEXT`NOT NULL
+
+---
+
+#### `applications.applications.courier_route_order`
+
+- **id** - `BIGSERIAL`PRIMARY KEY PRIMARY KEY
+- **cargo_loading_history_id** - `BIGINT`NOT NULL
+- **track_number** - `TEXT`NOT NULL UNIQUE
+- **external_id** - `TEXT`NOT NULL
+- **load_type** - `TEXT`NOT NULL
+- **status** - `TEXT`NOT NULL DEFAULT
+- **status_reason** - `TEXT`
+- **status_datetime** - `TIMESTAMP`
+- **sms_code_used** - `TEXT`
+- **photo_id** - `UUID`
+- **courier_comment** - `TEXT`
+- **positions** - `JSONB`
+- **created_at** - `TIMESTAMP`NOT NULL DEFAULT
+- **created_by** - `TEXT`NOT NULL
+- **updated_at** - `TIMESTAMP`NOT NULL DEFAULT
 - **updated_by** - `TEXT`NOT NULL
 
 ---
@@ -946,6 +990,40 @@
 
 ---
 
+#### `notifications.notifications.notification_blacklist`
+
+- **id** - `BIGSERIAL`PRIMARY KEY
+- **contact_type** - `VARCHAR(10)`NOT NULL
+- **contact_value** - `VARCHAR(255)`NOT NULL
+- **reason** - `VARCHAR(100)`
+- **blacklisted_at** - `TIMESTAMP`DEFAULT
+- **last_attempt_at** - `TIMESTAMP`
+
+---
+
+#### `notifications.notifications.notification_conversion`
+
+- **id** - `BIGSERIAL`PRIMARY KEY
+- **notification_id** - `BIGINT`
+- **conversion_type** - `VARCHAR(30)`NOT NULL
+- **conversion_value** - `DECIMAL(15`
+- **converted_at** - `TIMESTAMP`DEFAULT
+
+---
+
+#### `notifications.notifications.notification_cost`
+
+- **id** - `BIGSERIAL`PRIMARY KEY
+- **channel** - `VARCHAR(20)`NOT NULL
+- **provider_id** - `VARCHAR(50)`
+- **cost_per_message** - `DECIMAL(10`
+- **currency** - `VARCHAR(3)`DEFAULT
+- **effective_from** - `DATE`NOT NULL
+- **effective_to** - `DATE`
+- **created_at** - `TIMESTAMP`DEFAULT
+
+---
+
 #### `notifications.notifications.notification_filters`
 
 - **id** - `BIGSERIAL`PRIMARY KEY
@@ -967,6 +1045,44 @@
 - **updated_by** - `TEXT`NOT NULL DEFAULT
 - **created_at** - `TIMESTAMPTZ`NOT NULL DEFAULT
 - **updated_at** - `TIMESTAMPTZ`NOT NULL DEFAULT
+
+---
+
+#### `notifications.notifications.notification_log`
+
+- **id** - `BIGSERIAL`PRIMARY KEY
+- **organization_id** - `BIGINT`
+- **recipient_user_id** - `BIGINT`
+- **notification_type** - `VARCHAR(50)`NOT NULL
+- **channel** - `VARCHAR(20)`NOT NULL
+- **priority** - `VARCHAR(10)`DEFAULT
+- **subject** - `VARCHAR(255)`
+- **message** - `TEXT`
+- **template_id** - `VARCHAR(50)`
+- **template_variables** - `JSONB`
+- **sent_at** - `TIMESTAMP`
+- **delivered_at** - `TIMESTAMP`
+- **delivery_status** - `VARCHAR(20)`DEFAULT
+- **delivery_attempts** - `INTEGER`DEFAULT
+- **provider_id** - `VARCHAR(50)`
+- **external_message_id** - `VARCHAR(100)`
+- **opened** - `BOOLEAN`DEFAULT
+- **opened_at** - `TIMESTAMP`
+- **clicked** - `BOOLEAN`DEFAULT
+- **clicked_at** - `TIMESTAMP`
+- **replied** - `BOOLEAN`DEFAULT
+- **replied_at** - `TIMESTAMP`
+- **error_code** - `VARCHAR(50)`
+- **error_message** - `TEXT`
+- **retry_count** - `INTEGER`DEFAULT
+- **next_retry_at** - `TIMESTAMP`
+- **related_entity_type** - `VARCHAR(30)`
+- **related_entity_id** - `BIGINT`
+- **campaign_id** - `VARCHAR(50)`
+- **user_agent** - `TEXT`
+- **ip_address** - `INET`
+- **created_at** - `TIMESTAMP`DEFAULT
+- **updated_at** - `TIMESTAMP`DEFAULT
 
 ---
 
@@ -992,6 +1108,37 @@
 - **created_by** - `TEXT`NOT NULL DEFAULT
 - **updated_by** - `TEXT`NOT NULL DEFAULT
 - **updated_at** - `TIMESTAMPTZ`NOT NULL DEFAULT
+
+---
+
+#### `notifications.notifications.notification_provider`
+
+- **id** - `VARCHAR(50)`PRIMARY KEY
+- **name** - `VARCHAR(100)`NOT NULL
+- **channel** - `VARCHAR(20)`NOT NULL
+- **api_endpoint** - `VARCHAR(255)`
+- **api_key_encrypted** - `TEXT`
+- **is_active** - `BOOLEAN`DEFAULT
+- **max_rate_per_minute** - `INTEGER`DEFAULT
+- **reliability_score** - `DECIMAL(3`
+- **cost_per_message** - `DECIMAL(10`
+- **created_at** - `TIMESTAMP`DEFAULT
+- **updated_at** - `TIMESTAMP`DEFAULT
+
+---
+
+#### `notifications.notifications.notification_template`
+
+- **id** - `VARCHAR(50)`PRIMARY KEY
+- **name** - `VARCHAR(100)`NOT NULL
+- **description** - `TEXT`
+- **channel** - `VARCHAR(20)`NOT NULL
+- **subject_template** - `VARCHAR(255)`
+- **body_template** - `TEXT`NOT NULL
+- **variables** - `JSONB`
+- **is_active** - `BOOLEAN`DEFAULT
+- **created_at** - `TIMESTAMP`DEFAULT
+- **updated_at** - `TIMESTAMP`DEFAULT
 
 ---
 
@@ -1046,8 +1193,8 @@
 ## 📊 Статистика генерации
 
 **Всего схем обработано**:        7
-**Всего таблиц найдено**: 61
-**Всего колонок найдено**: 666
+**Всего таблиц найдено**: 69
+**Всего колонок найдено**: 773
 **Всего Foreign Key найдено**: 2
 **Всего Primary Key найдено**: 0
 
