@@ -752,36 +752,36 @@ flowchart LR
 
 ```mermaid
 graph TB
-    subgraph "Coube Frontend (Vue.js)"
+    subgraph Frontend["Coube Frontend Vue.js"]
         WebUI[Веб интерфейс]
         QRGen[Генератор QR-кодов]
         WebSocket[WebSocket клиент]
     end
 
-    subgraph "Coube Mobile (React Native)"
+    subgraph Mobile["Coube Mobile React Native"]
         MobileUI[Мобильный интерфейс]
         DeepLinkHandler[Deep Link обработчик]
         Polling[Polling сервис]
     end
 
-    subgraph "Coube Backend (Spring Boot)"
-        API1Controller[API №1 Controller<br/>/api/egov-sign/info/:id]
-        API2Controller[API №2 Controller<br/>/api/egov-sign/documents/:id]
+    subgraph Backend["Coube Backend Spring Boot"]
+        API1Controller[API номер 1 Controller]
+        API2Controller[API номер 2 Controller]
         SignService[Signing Service]
         ValidationService[Validation Service]
-        KalkanService[Kalkan Integration<br/>(НУЦ РК)]
+        KalkanService[Kalkan Integration]
         WebhookService[Webhook Service]
     end
 
-    subgraph "База данных"
+    subgraph Database["База данных"]
         Documents[Документы]
         Signatures[Подписи]
         AuditLog[Журнал аудита]
     end
 
-    subgraph "Внешние сервисы"
+    subgraph External["Внешние сервисы"]
         eGovMobile[eGov Mobile App]
-        НУЦ[НУЦ РК OCSP]
+        NUC[НУЦ РК OCSP]
         SIEM[SIEM система]
     end
 
@@ -799,7 +799,7 @@ graph TB
 
     eGovMobile -->|PUT подписанные| API2Controller
     API2Controller -->|Валидировать| ValidationService
-    ValidationService -->|OCSP запрос| НУЦ
+    ValidationService -->|OCSP запрос| NUC
 
     ValidationService -->|Сохранить| Signatures
     ValidationService -->|Журналировать| AuditLog
@@ -814,7 +814,7 @@ graph TB
     AuditLog -->|Отправить логи| SIEM
 
     style eGovMobile fill:#e1f5ff
-    style НУЦ fill:#ffe1e1
+    style NUC fill:#ffe1e1
     style SIEM fill:#fff4e1
 ```
 
