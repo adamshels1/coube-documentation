@@ -33,13 +33,13 @@ sequenceDiagram
     Backend->>Backend: 3. Создать URL API №1<br/>с параметрами документа
     Backend->>Web: 4. Вернуть QR-код данные
 
-    Note over Web: Формирование QR-кода<br/>с префиксом "mobileSign:"
+    Note over Web: Формирование QR-кода<br/>с префиксом префиксом mobileSign
 
-    Web->>Web: 5. Сгенерировать QR-код<br/>mobileSign:https://backend.coube.kz/api/sign/{id}
+    Web->>Web: 5. Сгенерировать QR-код<br/>mobileSign:https://backend.coube.kz/api/sign/ID
     Web->>User: 6. Отобразить QR-код на экране
 
     User->>eGov: 7. Открыть eGov Mobile<br/>и сканировать QR-код
-    eGov->>eGov: 8. Распознать префикс "mobileSign:"
+    eGov->>eGov: 8. Распознать префикс префиксом mobileSign
     eGov->>API1: 9. GET запрос на API №1<br/>(из QR-кода)
 
     API1->>Backend: 10. Получить метаданные документа
@@ -76,7 +76,7 @@ sequenceDiagram
         Backend->>НУЦ: 24. Проверка ЭЦП через OCSP
         НУЦ->>Backend: 25. Результат валидации
         Backend->>API2: 26. Результат сохранения
-        API2->>eGov: 27. Статус 200 "success"<br/>или 403 (ошибка валидации)
+        API2->>eGov: 27. Статус 200 success<br/>или 403 (ошибка валидации)
     end
 
     eGov->>User: 28. Уведомление об успехе/<br/>ошибке подписания
@@ -151,21 +151,21 @@ sequenceDiagram
 
     Note over Backend: Генерация API №1 URL
 
-    Backend->>Backend: 3. Создать URL API №1:<br/>https://backend.coube.kz/api/egov-sign/info/{id}?token=xxx
+    Backend->>Backend: 3. Создать URL API №1:<br/>https://backend.coube.kz/api/egov-sign/info/ID?token=xxx
 
     Backend->>Backend: 4. URL-кодировать параметры:<br/>? → %3F<br/>= → %3D<br/>& → %26
 
     Note over Backend: Формирование динамической ссылки<br/>для iOS/Android
 
     alt iOS устройство
-        Backend->>Backend: 5a. Построить iOS deep link:<br/>https://mgovsign.page.link/?link={encoded_API1}<br/>&isi=1476128386<br/>&ibi=kz.egov.mobile
+        Backend->>Backend: 5a. Построить iOS deep link:<br/>https://mgovsign.page.link/?link=закодированный API1<br/>&isi=1476128386<br/>&ibi=kz.egov.mobile
         Backend->>Mobile: 6a. Вернуть iOS deep link
     else Android устройство
-        Backend->>Backend: 5b. Построить Android deep link:<br/>https://mgovsign.page.link/?link={encoded_API1}<br/>&apn=kz.mobile.mgov
+        Backend->>Backend: 5b. Построить Android deep link:<br/>https://mgovsign.page.link/?link=закодированный API1<br/>&apn=kz.mobile.mgov
         Backend->>Mobile: 6b. Вернуть Android deep link
     end
 
-    Mobile->>User: 7. Показать кнопку<br/>"Подписать через eGov Mobile"
+    Mobile->>User: 7. Показать кнопку<br/>Подписать через eGov Mobile
 
     User->>Mobile: 8. Нажать кнопку подписания
 
@@ -242,7 +242,7 @@ flowchart TD
     FinalURL_iOS --> ReturnToApp[Вернуть URL в приложение]
     FinalURL_Android --> ReturnToApp
 
-    ReturnToApp --> DisplayButton[Отобразить кнопку:<br/>"Подписать через eGov Mobile"]
+    ReturnToApp --> DisplayButton[Отобразить кнопку:<br/>Подписать через eGov Mobile]
 
     DisplayButton --> UserClick{Пользователь<br/>нажал кнопку?}
 
@@ -272,18 +272,18 @@ flowchart TD
 flowchart TD
     Start([eGov Mobile получил<br/>метаданные из API №1]) --> ParseAuth{Определить<br/>auth_type}
 
-    ParseAuth -->|"None"| GetNone[Метод: GET<br/>Без аутентификации]
-    ParseAuth -->|"Token"| GetToken[Метод: GET<br/>С Bearer Token]
-    ParseAuth -->|"Eds"| PostEds[Метод: POST<br/>С подписанным XML]
+    ParseAuth -->|None| GetNone[Метод: GET<br/>Без аутентификации]
+    ParseAuth -->|Token| GetToken[Метод: GET<br/>С Bearer Token]
+    ParseAuth -->|Eds| PostEds[Метод: POST<br/>С подписанным XML]
 
     GetNone --> BuildRequest_None[Построить GET запрос:<br/>URL: document.uri из API №1<br/>Headers: Accept-Language: ru/kk/en]
 
     GetToken --> ExtractToken[Извлечь auth_token из API №1]
-    ExtractToken --> BuildRequest_Token[Построить GET запрос:<br/>URL: document.uri<br/>Headers:<br/>- Authorization: Bearer {auth_token}<br/>- Accept-Language: ru/kk/en]
+    ExtractToken --> BuildRequest_Token[Построить GET запрос:<br/>URL: document.uri<br/>Headers:<br/>- Authorization: Bearer токен<br/>- Accept-Language: ru/kk/en]
 
     PostEds --> GenerateXML[Сгенерировать XML для подписания<br/>с URL и timestamp]
     GenerateXML --> SignXML[Подписать XML с помощью<br/>AUTH_*.p12 ключа пользователя]
-    SignXML --> BuildRequest_Eds[Построить POST запрос:<br/>URL: document.uri<br/>Headers: <br/>- Content-Type: application/json<br/>- Accept-Language: ru/kk/en<br/>Body: {"xml": "signed xml string"}]
+    SignXML --> BuildRequest_Eds[Построить POST запрос:<br/>URL: document.uri<br/>Headers: <br/>- Content-Type: application/json<br/>- Accept-Language: ru/kk/en<br/>Body: с подписанным XML]
 
     BuildRequest_None --> SendRequest[Отправить запрос на API №2]
     BuildRequest_Token --> SendRequest
@@ -292,22 +292,22 @@ flowchart TD
     SendRequest --> CheckResponse{Проверить<br/>HTTP статус}
 
     CheckResponse -->|200 OK| ParseJSON[Распарсить JSON ответ]
-    CheckResponse -->|4xx/5xx| ShowError[Показать ошибку пользователю:<br/>{"message": "Локализованное сообщение"}]
+    CheckResponse -->|4xx/5xx| ShowError[Показать ошибку пользователю:<br/>с сообщением об ошибке]
 
     ShowError --> End([Конец: Ошибка получения документов])
 
     ParseJSON --> ValidateJSON{Валидация<br/>структуры JSON}
 
     ValidateJSON -->|Невалидный| ShowError
-    ValidateJSON -->|Валидный| ExtractFields[Извлечь поля:<br/>- signMethod<br/>- version<br/>- documentsToSign[]]
+    ValidateJSON -->|Валидный| ExtractFields[Извлечь поля:<br/>- signMethod<br/>- version<br/>- documentsToSign массив]
 
     ExtractFields --> CheckMethod{Проверить<br/>signMethod}
 
-    CheckMethod -->|"XML"| ProcessXML[Обработать XML документы]
-    CheckMethod -->|"CMS_WITH_DATA"| ProcessCMS_Data[Обработать CMS с данными]
-    CheckMethod -->|"CMS_SIGN_ONLY"| ProcessCMS_Sign[Обработать CMS только подпись]
-    CheckMethod -->|"SIGN_BYTES_ARRAY"| ProcessBytes[Обработать массив байтов]
-    CheckMethod -->|"MIX_SIGN"| ProcessMix[Обработать смешанное подписание]
+    CheckMethod -->|XML| ProcessXML[Обработать XML документы]
+    CheckMethod -->|CMS_WITH_DATA| ProcessCMS_Data[Обработать CMS с данными]
+    CheckMethod -->|CMS_SIGN_ONLY| ProcessCMS_Sign[Обработать CMS только подпись]
+    CheckMethod -->|SIGN_BYTES_ARRAY| ProcessBytes[Обработать массив байтов]
+    CheckMethod -->|MIX_SIGN| ProcessMix[Обработать смешанное подписание]
 
     ProcessXML --> LoopDocs_XML[Для каждого документа:<br/>- Извлечь documentXml<br/>- Отобразить XML пользователю]
     ProcessCMS_Data --> LoopDocs_CMS_Data[Для каждого документа:<br/>- Декодировать document.file.data из base64<br/>- Отобразить по MIME типу]
@@ -334,15 +334,15 @@ flowchart TD
 
     DecodeBas64 --> CheckMime{Определить<br/>MIME тип}
 
-    CheckMime -->|"text/plain"| DisplayText[Отобразить текст в UI:<br/>- Показать в текстовом поле<br/>- Разрешить прокрутку]
+    CheckMime -->|text/plain| DisplayText[Отобразить текст в UI:<br/>- Показать в текстовом поле<br/>- Разрешить прокрутку]
 
-    CheckMime -->|"application/pdf"| DisplayPDF[Отобразить PDF:<br/>- Использовать PDF viewer<br/>- Показать кнопки:<br/>  * Скачать<br/>  * Поделиться]
+    CheckMime -->|application/pdf| DisplayPDF[Отобразить PDF:<br/>- Использовать PDF viewer<br/>- Показать кнопки:<br/>  * Скачать<br/>  * Поделиться]
 
-    CheckMime -->|"application/xml"| DisplayXML[Отобразить XML:<br/>- Форматированный вывод<br/>- Подсветка синтаксиса<br/>ТОЛЬКО для SIGN_BYTES_ARRAY]
+    CheckMime -->|application/xml| DisplayXML[Отобразить XML:<br/>- Форматированный вывод<br/>- Подсветка синтаксиса<br/>ТОЛЬКО для SIGN_BYTES_ARRAY]
 
     CheckMime -->|Другой MIME| NoDisplay[НЕ отображать содержимое:<br/>- Показать иконку типа файла<br/>- Показать имя документа<br/>- Показать размер]
 
-    DisplayText --> ShowMeta[Показать метаданные:<br/>- nameRu/nameKz/nameEn<br/>- meta[] массив]
+    DisplayText --> ShowMeta[Показать метаданные:<br/>- nameRu/nameKz/nameEn<br/>- meta массив массив]
     DisplayPDF --> ShowMeta
     DisplayXML --> ShowMeta
     NoDisplay --> ShowMeta
@@ -364,26 +364,26 @@ flowchart TD
 
     EnterPassword --> ValidatePassword{Проверка<br/>пароля ключа}
 
-    ValidatePassword -->|Неверный| ShowPassError[Показать ошибку:<br/>"Неверный пароль"]
+    ValidatePassword -->|Неверный| ShowPassError[Показать ошибку:<br/>Неверный пароль]
     ShowPassError --> EnterPassword
 
     ValidatePassword -->|Верный| LoadCert[Загрузить сертификат<br/>из ключа *.p12]
 
     LoadCert --> CheckCertValid{Проверить<br/>сертификат}
 
-    CheckCertValid -->|Срок истек| ShowCertError[Показать ошибку:<br/>"Срок действия сертификата истек"]
+    CheckCertValid -->|Срок истек| ShowCertError[Показать ошибку:<br/>Срок действия сертификата истек]
     ShowCertError --> End([Конец: Подписание невозможно])
 
-    CheckCertValid -->|Отозван| ShowRevokeError[Показать ошибку:<br/>"Сертификат отозван"]
+    CheckCertValid -->|Отозван| ShowRevokeError[Показать ошибку:<br/>Сертификат отозван]
     ShowRevokeError --> End
 
     CheckCertValid -->|Валидный| CheckSignMethod{Определить<br/>signMethod}
 
-    CheckSignMethod -->|"XML"| SignXML[Подписание XML]
-    CheckSignMethod -->|"CMS_WITH_DATA"| SignCMS_Data[Подписание CMS с данными]
-    CheckSignMethod -->|"CMS_SIGN_ONLY"| SignCMS_Only[Подписание CMS только подпись]
-    CheckSignMethod -->|"SIGN_BYTES_ARRAY"| SignBytes[Подписание массива байтов]
-    CheckSignMethod -->|"MIX_SIGN"| SignMix[Смешанное подписание]
+    CheckSignMethod -->|XML| SignXML[Подписание XML]
+    CheckSignMethod -->|CMS_WITH_DATA| SignCMS_Data[Подписание CMS с данными]
+    CheckSignMethod -->|CMS_SIGN_ONLY| SignCMS_Only[Подписание CMS только подпись]
+    CheckSignMethod -->|SIGN_BYTES_ARRAY| SignBytes[Подписание массива байтов]
+    CheckSignMethod -->|MIX_SIGN| SignMix[Смешанное подписание]
 
     SignXML --> ProcessXML_Sign[Для каждого документа:<br/>1. Получить documentXml<br/>2. Подписать по стандарту XML dsig<br/>3. Добавить timestamp НУЦ РК<br/>4. Заменить documentXml подписанным]
 
@@ -405,7 +405,7 @@ flowchart TD
 
     GetTimestamp --> CheckTimestamp{НУЦ РК<br/>ответил?}
 
-    CheckTimestamp -->|Нет| ShowTimestampError[Показать ошибку:<br/>"Не удалось получить timestamp"]
+    CheckTimestamp -->|Нет| ShowTimestampError[Показать ошибку:<br/>Не удалось получить timestamp]
     ShowTimestampError --> End
 
     CheckTimestamp -->|Да| EmbedTimestamp[Встроить timestamp в подпись]
@@ -417,7 +417,7 @@ flowchart TD
     ValidateSignedJSON -->|Ошибка| ShowValidationError[Показать ошибку валидации]
     ShowValidationError --> End
 
-    ValidateSignedJSON -->|Успех| ShowSuccess[Показать пользователю:<br/>"Документы подписаны успешно"]
+    ValidateSignedJSON -->|Успех| ShowSuccess[Показать пользователю:<br/>Документы подписаны успешно]
 
     ShowSuccess --> PrepareUpload[Подготовить к отправке на API №2]
 
@@ -436,11 +436,11 @@ flowchart TD
 
     ConvertBytes --> SignBytes[Подписать массив байтов<br/>используя ЭЦП ключ]
 
-    SignBytes --> GetSignature[Получить:<br/>- signature (подпись)<br/>- certificate (сертификат)]
+    SignBytes --> GetSignature[Получить:<br/>- signature <br/>- certificate ]
 
     GetSignature --> EncodeBase64[Кодировать в base64:<br/>- signature_base64<br/>- certificate_base64]
 
-    EncodeBase64 --> BuildJSON[Построить JSON строку:<br/>{<br/>  "signature": "signature_base64",<br/>  "certificate": "certificate_base64"<br/>}]
+    EncodeBase64 --> BuildJSON[Построить JSON строку<br/>с signature и certificate]
 
     BuildJSON --> ReplaceData[Заменить document.file.data<br/>на JSON строку]
 
@@ -479,7 +479,7 @@ sequenceDiagram
 
     eGov->>eGov: 1. Подготовить JSON с подписанными<br/>документами (замененные поля)
 
-    eGov->>API2: 2. PUT запрос<br/>URL: document.uri (из API №1)<br/>Headers:<br/>- Content-Type: application/json<br/>- Authorization: Bearer {token} (если auth_type=Token)<br/>- Accept-Language: ru/kk/en<br/>Body: {подписанный JSON}
+    eGov->>API2: 2. PUT запрос<br/>URL: document.uri (из API №1)<br/>Headers:<br/>- Content-Type: application/json<br/>- Authorization: Bearer токен (если auth_type=Token)<br/>- Accept-Language: ru/kk/en<br/>Body: подписанный JSON
 
     API2->>Backend: 3. Получить подписанные документы
 
@@ -487,7 +487,7 @@ sequenceDiagram
 
     alt Структура невалидна
         Backend->>API2: 5a. Ошибка 400 Bad Request
-        API2->>eGov: 6a. {"message": "Неверная структура данных"}
+        API2->>eGov: 6a. с сообщением об ошибке
         eGov->>eGov: 7a. Показать ошибку пользователю
     else Структура валидна
         Backend->>Backend: 5b. Извлечь подписи из документов
@@ -501,7 +501,7 @@ sequenceDiagram
 
             Backend->>Backend: 8. Извлечь сертификат из подписи
 
-            Backend->>Backend: 9. Проверить регистрационное<br/>свидетельство (сертификат):<br/>- Выдано НУЦ РК<br/>- ИИН/БИН соответствует отправителю
+            Backend->>Backend: 9. Проверить регистрационное<br/>свидетельство :<br/>- Выдано НУЦ РК<br/>- ИИН/БИН соответствует отправителю
 
             Backend->>Backend: 10. Проверить срок действия:<br/>- NotBefore <= текущее время<br/>- NotAfter >= текущее время<br/>(время Астаны)
 
@@ -525,9 +525,9 @@ sequenceDiagram
                 Backend->>Backend: 15. Проверить наличие серийного<br/>номера в CRL
             end
 
-            Backend->>Backend: 16. Проверить KeyUsage:<br/>- "Цифровая подпись"<br/>- "Неотрекаемость"
+            Backend->>Backend: 16. Проверить KeyUsage:<br/>- Цифровая подпись<br/>- Неотрекаемость
 
-            Backend->>Backend: 17. Проверить алгоритм:<br/>ГОСТ 34.311-95 (хэш)<br/>ГОСТ 34.310-2004 (подпись)
+            Backend->>Backend: 17. Проверить алгоритм:<br/>ГОСТ 34.311-95 <br/>ГОСТ 34.310-2004 
 
             Backend->>Backend: 18. Проверить timestamp НУЦ РК<br/>в подписи
 
@@ -547,16 +547,16 @@ sequenceDiagram
             Backend->>DB: 23a. Обновить статус документа:<br/>status = "SIGNED"
             Backend->>Backend: 24a. Журналировать событие:<br/>- Дата/время<br/>- Пользователь (ИИН/БИН)<br/>- Документ<br/>- Статус: SUCCESS
 
-            Backend->>API2: 25a. Ответ: 200 OK<br/>{"message": "success"}
+            Backend->>API2: 25a. Ответ: 200 OK<br/>сообщение success
             API2->>eGov: 26a. Статус 200
-            eGov->>eGov: 27a. Показать пользователю:<br/>"Документы успешно подписаны"
+            eGov->>eGov: 27a. Показать пользователю:<br/>Документы успешно подписаны
 
         else Хотя бы одна подпись невалидна
             Backend->>Backend: 22b. Журналировать ошибку:<br/>- Дата/время<br/>- Пользователь<br/>- Документ<br/>- Причина ошибки<br/>- Статус: FAILED
 
-            Backend->>API2: 23b. Ответ: 403 Forbidden<br/>{"message": "Подпись не прошла валидацию"}
+            Backend->>API2: 23b. Ответ: 403 Forbidden<br/>с сообщением об ошибке валидации
             API2->>eGov: 24b. Статус 403
-            eGov->>eGov: 25b. Показать пользователю:<br/>"Ошибка валидации подписи"
+            eGov->>eGov: 25b. Показать пользователю:<br/>Ошибка валидации подписи
         end
     end
 
@@ -653,7 +653,7 @@ flowchart TD
 
     LogSuccess --> SaveDoc[Сохранить подписанный документ<br/>в базу данных]
 
-    SaveDoc --> Return200[Вернуть 200 OK<br/>{"message": "success"}]
+    SaveDoc --> Return200[Вернуть 200 OK<br/>сообщение success]
 
     Return200 --> End([Конец: Успешная валидация])
     Return403 --> End
@@ -671,9 +671,9 @@ flowchart TD
 
     ParseAuthType --> CheckType{Определить<br/>auth_type}
 
-    CheckType -->|"None"| FlowNone[Аутентификация: None]
-    CheckType -->|"Token"| FlowToken[Аутентификация: Token]
-    CheckType -->|"Eds"| FlowEds[Аутентификация: Eds]
+    CheckType -->|None| FlowNone[Аутентификация: None]
+    CheckType -->|Token| FlowToken[Аутентификация: Token]
+    CheckType -->|Eds| FlowEds[Аутентификация: Eds]
 
     FlowNone --> BuildNone[Построить запрос:<br/>Метод: GET<br/>URL: document.uri<br/>Headers:<br/>- Accept-Language: ru/kk/en]
 
@@ -682,7 +682,7 @@ flowchart TD
     ValidateToken -->|Нет| ErrorNoToken[Ошибка:<br/>auth_token обязателен для Token]
     ErrorNoToken --> End([Показать ошибку])
 
-    ValidateToken -->|Да| BuildToken[Построить запрос:<br/>Метод: GET<br/>URL: document.uri<br/>Headers:<br/>- Authorization: Bearer {auth_token}<br/>- Accept-Language: ru/kk/en]
+    ValidateToken -->|Да| BuildToken[Построить запрос:<br/>Метод: GET<br/>URL: document.uri<br/>Headers:<br/>- Authorization: Bearer токен<br/>- Accept-Language: ru/kk/en]
 
     FlowEds --> GenerateEdsXML[Сгенерировать XML<br/>с URL и timestamp]
 
@@ -690,7 +690,7 @@ flowchart TD
 
     SelectAuthKey --> SignEdsXML[Подписать XML используя<br/>AUTH ключ]
 
-    SignEdsXML --> BuildEds[Построить запрос:<br/>Метод: POST<br/>URL: document.uri<br/>Headers:<br/>- Content-Type: application/json<br/>- Accept-Language: ru/kk/en<br/>Body:<br/>{"xml": "{подписанный XML}"}]
+    SignEdsXML --> BuildEds[Построить запрос:<br/>Метод: POST<br/>URL: document.uri<br/>Headers:<br/>- Content-Type: application/json<br/>- Accept-Language: ru/kk/en<br/>Body: XML с подписью]
 
     BuildNone --> SendRequest[Отправить запрос к API №2]
     BuildToken --> SendRequest
@@ -700,15 +700,15 @@ flowchart TD
 
     CheckResponse -->|200 OK| ParseResponse[Получить JSON с документами]
     CheckResponse -->|401 Unauthorized| ErrorAuth[Ошибка аутентификации]
-    ErrorAuth --> ShowAuthError[Показать:<br/>"Ошибка аутентификации"]
+    ErrorAuth --> ShowAuthError[Показать:<br/>Ошибка аутентификации]
     ShowAuthError --> End
 
     CheckResponse -->|403 Forbidden| ErrorForbidden[Ошибка доступа]
-    ErrorForbidden --> ShowForbiddenError[Показать:<br/>"Доступ запрещен"]
+    ErrorForbidden --> ShowForbiddenError[Показать:<br/>Доступ запрещен]
     ShowForbiddenError --> End
 
     CheckResponse -->|500| ErrorServer[Ошибка сервера]
-    ErrorServer --> ParseErrorMsg[Извлечь {"message": "..."}]
+    ErrorServer --> ParseErrorMsg[Извлечь сообщение об ошибке]
     ParseErrorMsg --> ShowServerError[Показать сообщение от сервера]
     ShowServerError --> End
 
@@ -844,7 +844,7 @@ sequenceDiagram
     Controller->>Service: getDocumentsToSign(documentId, authData)
     Service->>DB: findDocumentFiles(documentId)
     DB->>Service: List<DocumentFile>
-    Service->>Service: Построить documentsToSign[]:<br/>- id, signMethod<br/>- nameRu/Kz/En<br/>- meta[], documentXml/document
+    Service->>Service: Построить documentsToSign массив:<br/>- id, signMethod<br/>- nameRu/Kz/En<br/>- meta массив, documentXml/document
     Service->>Controller: DocumentsToSignDTO
     Controller->>Controller: Return JSON response
 
@@ -893,7 +893,7 @@ sequenceDiagram
         Audit->>SIEM: Send syslog event (RFC 5424)
 
         Service->>Controller: Success
-        Controller->>Controller: Return 200 OK {"message": "success"}
+        Controller->>Controller: Return 200 OK сообщение success
 
     else Ошибка валидации
         Controller->>Audit: logSigningEvent(FAILED, documentId, error)
@@ -914,7 +914,7 @@ flowchart TD
     Start([Начало процесса подписания]) --> Step1{Этап}
 
     Step1 -->|QR сканирование| CheckQR{QR корректен?}
-    CheckQR -->|Нет| ErrorQR[Ошибка:<br/>"Некорректный QR-код"]
+    CheckQR -->|Нет| ErrorQR[Ошибка:<br/>Некорректный QR-код]
     ErrorQR --> End([Показать ошибку пользователю])
 
     CheckQR -->|Да| Step2
@@ -923,26 +923,26 @@ flowchart TD
     CallAPI1 --> CheckAPI1{HTTP статус?}
 
     CheckAPI1 -->|200| Step2
-    CheckAPI1 -->|404| Error404_1[Ошибка:<br/>"Документ не найден"]
+    CheckAPI1 -->|404| Error404_1[Ошибка:<br/>Документ не найден]
     Error404_1 --> End
-    CheckAPI1 -->|500| Error500_1[Ошибка:<br/>"Ошибка сервера"]
+    CheckAPI1 -->|500| Error500_1[Ошибка:<br/>Ошибка сервера]
     Error500_1 --> End
-    CheckAPI1 -->|Timeout| ErrorTimeout1[Ошибка:<br/>"Превышено время ожидания"]
+    CheckAPI1 -->|Timeout| ErrorTimeout1[Ошибка:<br/>Превышено время ожидания]
     ErrorTimeout1 --> End
 
     Step2[Получен API №1 response] --> CheckExpiry{expiry_date<br/>не истек?}
 
-    CheckExpiry -->|Истек| ErrorExpired[Ошибка:<br/>"Срок действия документа истек"]
+    CheckExpiry -->|Истек| ErrorExpired[Ошибка:<br/>Срок действия документа истек]
     ErrorExpired --> End
 
     CheckExpiry -->|Активен| Step3[Вызов API №2]
 
     Step3 --> CheckAuth{auth_type<br/>корректен?}
 
-    CheckAuth -->|Token без auth_token| ErrorNoToken[Ошибка:<br/>"Токен не предоставлен"]
+    CheckAuth -->|Token без auth_token| ErrorNoToken[Ошибка:<br/>Токен не предоставлен]
     ErrorNoToken --> End
 
-    CheckAuth -->|Eds, ошибка подписи XML| ErrorEdsSign[Ошибка:<br/>"Не удалось подписать XML для аутентификации"]
+    CheckAuth -->|Eds, ошибка подписи XML| ErrorEdsSign[Ошибка:<br/>Не удалось подписать XML для аутентификации]
     ErrorEdsSign --> End
 
     CheckAuth -->|Корректен| CallAPI2[Запрос к API №2]
@@ -950,16 +950,16 @@ flowchart TD
     CallAPI2 --> CheckAPI2{HTTP статус?}
 
     CheckAPI2 -->|200| Step4
-    CheckAPI2 -->|401| Error401[Ошибка:<br/>"Неверная аутентификация"]
+    CheckAPI2 -->|401| Error401[Ошибка:<br/>Неверная аутентификация]
     Error401 --> End
-    CheckAPI2 -->|403| Error403[Ошибка:<br/>"Доступ запрещен"]
+    CheckAPI2 -->|403| Error403[Ошибка:<br/>Доступ запрещен]
     Error403 --> End
     CheckAPI2 -->|500| Error500_2[Показать message из JSON]
     Error500_2 --> End
 
     Step4[Получены документы] --> ValidateJSON{JSON<br/>валиден?}
 
-    ValidateJSON -->|Нет| ErrorJSON[Ошибка:<br/>"Некорректный формат данных"]
+    ValidateJSON -->|Нет| ErrorJSON[Ошибка:<br/>Некорректный формат данных]
     ErrorJSON --> End
 
     ValidateJSON -->|Да| Step5[Показать документы пользователю]
@@ -971,30 +971,30 @@ flowchart TD
 
     UserSign -->|Подписать| CheckKey{Ключ ЭЦП<br/>валиден?}
 
-    CheckKey -->|Пароль неверный| ErrorPassword[Ошибка:<br/>"Неверный пароль"]
+    CheckKey -->|Пароль неверный| ErrorPassword[Ошибка:<br/>Неверный пароль]
     ErrorPassword --> Step5
 
-    CheckKey -->|Сертификат истек| ErrorCertExpired[Ошибка:<br/>"Срок действия сертификата истек"]
+    CheckKey -->|Сертификат истек| ErrorCertExpired[Ошибка:<br/>Срок действия сертификата истек]
     ErrorCertExpired --> End
 
-    CheckKey -->|Сертификат отозван| ErrorCertRevoked[Ошибка:<br/>"Сертификат отозван"]
+    CheckKey -->|Сертификат отозван| ErrorCertRevoked[Ошибка:<br/>Сертификат отозван]
     ErrorCertRevoked --> End
 
     CheckKey -->|Валиден| SignDocs[Подписать документы]
 
     SignDocs --> CheckTimestamp{НУЦ РК<br/>timestamp получен?}
 
-    CheckTimestamp -->|Нет| ErrorTimestamp[Ошибка:<br/>"Не удалось получить timestamp"]
+    CheckTimestamp -->|Нет| ErrorTimestamp[Ошибка:<br/>Не удалось получить timestamp]
     ErrorTimestamp --> End
 
     CheckTimestamp -->|Да| SendSigned[PUT подписанные документы]
 
     SendSigned --> CheckPUT{HTTP статус?}
 
-    CheckPUT -->|200| Success[Успех:<br/>"Документы подписаны"]
+    CheckPUT -->|200| Success[Успех:<br/>Документы подписаны]
     Success --> End
 
-    CheckPUT -->|403| ErrorValidation[Ошибка:<br/>"Подпись не прошла валидацию"]
+    CheckPUT -->|403| ErrorValidation[Ошибка:<br/>Подпись не прошла валидацию]
     ErrorValidation --> End
 
     CheckPUT -->|500| ErrorServerPUT[Ошибка сервера при сохранении]
@@ -1096,21 +1096,21 @@ flowchart LR
 **Эндпоинты:**
 ```java
 // API №1 - Получение информации о подписании
-GET /api/egov-sign/info/{documentId}
+GET /api/egov-sign/info/ID документа
 Response: {
   description: string,
   expiry_date: ISO8601,
   organisation: {...},
   document: {
     uri: string,  // URL для API №2
-    auth_type: "None" | "Token" | "Eds",
+    auth_type: None | Token | Eds,
     auth_token?: string
   }
 }
 
 // API №2 - Получение документов для подписания
-GET /api/egov-sign/documents/{documentId}  // для auth_type=None или Token
-POST /api/egov-sign/documents/{documentId}  // для auth_type=Eds
+GET /api/egov-sign/documents/ID документа  // для auth_type=None или Token
+POST /api/egov-sign/documents/ID документа  // для auth_type=Eds
 Request (POST): { xml: string }
 Response: {
   signMethod: string,
@@ -1119,9 +1119,9 @@ Response: {
 }
 
 // API №2 - Отправка подписанных документов
-PUT /api/egov-sign/documents/{documentId}
+PUT /api/egov-sign/documents/ID документа
 Request: { подписанный JSON }
-Response: 200 OK {"message": "success"} или 403 Forbidden
+Response: 200 OK сообщение success или 403 Forbidden
 ```
 
 **Сервисы:**
@@ -1171,7 +1171,7 @@ class DigitalSignature {
 ```javascript
 // Генерация QR-кода
 async function generateQrCode(documentId) {
-  const apiUrl = `${API_BASE}/api/egov-sign/info/${documentId}`;
+  const apiUrl = `${API_BASE}/api/egov-sign/info/$ID документа`;
   const qrContent = `mobileSign:${apiUrl}`.replace(/\s/g, '');
   return QRCode.toDataURL(qrContent);
 }
@@ -1195,7 +1195,7 @@ socket.on('document-signed', (data) => {
 ```typescript
 // Построение deep link
 function buildEgovDeepLink(documentId: string, token: string): string {
-  const api1Url = `${API_BASE}/api/egov-sign/info/${documentId}?token=${token}`;
+  const api1Url = `${API_BASE}/api/egov-sign/info/$ID документа?token=$токен`;
   const encodedUrl = encodeURIComponent(api1Url);
 
   if (Platform.OS === 'ios') {
