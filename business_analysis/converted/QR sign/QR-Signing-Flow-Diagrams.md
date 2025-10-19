@@ -98,11 +98,11 @@ flowchart TD
     CheckDoc -->|Нет| EndNoSign([Документ не требует подписи])
     CheckDoc -->|Да| GenerateAPI1[Сгенерировать URL API №1]
 
-    GenerateAPI1 --> BuildURL[Построить URL:<br/>https://backend.coube.kz/api/egov-sign/info/{documentId}]
+    GenerateAPI1 --> BuildURL[Построить URL API endpoint]
 
-    BuildURL --> AddPrefix[Добавить префикс mobileSign:]
+    BuildURL --> AddPrefix[Добавить префикс mobileSign]
 
-    AddPrefix --> FormatQR[Форматировать для QR:<br/>mobileSign:https://backend.coube.kz/api/egov-sign/info/{documentId}]
+    AddPrefix --> FormatQR[Форматировать строку для QR-кода]
 
     FormatQR --> RemoveSpaces[Удалить все пробелы из строки]
 
@@ -227,17 +227,17 @@ flowchart TD
     DetectOS -->|iOS| BuildiOS[Начать построение iOS ссылки]
     DetectOS -->|Android| BuildAndroid[Начать построение Android ссылки]
 
-    BuildiOS --> CreateAPI1_iOS[1. Создать API №1 URL:<br/>https://backend.coube.kz/api/egov-sign/info/123?token=abc&user=xyz]
-    BuildAndroid --> CreateAPI1_Android[1. Создать API №1 URL:<br/>https://backend.coube.kz/api/egov-sign/info/123?token=abc&user=xyz]
+    BuildiOS --> CreateAPI1_iOS[1. Создать API №1 URL<br/>с параметрами документа]
+    BuildAndroid --> CreateAPI1_Android[1. Создать API №1 URL<br/>с параметрами документа]
 
-    CreateAPI1_iOS --> EncodeURL_iOS[2. URL-кодировать параметры:<br/>? → %3F, = → %3D, & → %26<br/>Результат:<br/>https://backend.coube.kz/api/egov-sign/info/123%3Ftoken%3Dabc%26user%3Dxyz]
-    CreateAPI1_Android --> EncodeURL_Android[2. URL-кодировать параметры:<br/>Результат:<br/>https://backend.coube.kz/api/egov-sign/info/123%3Ftoken%3Dabc%26user%3Dxyz]
+    CreateAPI1_iOS --> EncodeURL_iOS[2. URL-кодировать параметры<br/>? → %3F, = → %3D, & → %26]
+    CreateAPI1_Android --> EncodeURL_Android[2. URL-кодировать параметры<br/>? → %3F, = → %3D, & → %26]
 
-    EncodeURL_iOS --> BuildDeepLink_iOS[3. Построить deep link:<br/>https://mgovsign.page.link/<br/>?link={encodedURL}<br/>&isi=1476128386<br/>&ibi=kz.egov.mobile]
-    EncodeURL_Android --> BuildDeepLink_Android[3. Построить deep link:<br/>https://mgovsign.page.link/<br/>?link={encodedURL}<br/>&apn=kz.mobile.mgov]
+    EncodeURL_iOS --> BuildDeepLink_iOS[3. Построить iOS deep link<br/>mgovsign.page.link с параметрами<br/>isi и ibi]
+    EncodeURL_Android --> BuildDeepLink_Android[3. Построить Android deep link<br/>mgovsign.page.link с параметром apn]
 
-    BuildDeepLink_iOS --> FinalURL_iOS[Финальный iOS URL:<br/>https://mgovsign.page.link/?link=https://backend.coube.kz/api/egov-sign/info/123%3Ftoken%3Dabc%26user%3Dxyz&isi=1476128386&ibi=kz.egov.mobile]
-    BuildDeepLink_Android --> FinalURL_Android[Финальный Android URL:<br/>https://mgovsign.page.link/?link=https://backend.coube.kz/api/egov-sign/info/123%3Ftoken%3Dabc%26user%3Dxyz&apn=kz.mobile.mgov]
+    BuildDeepLink_iOS --> FinalURL_iOS[Финальный iOS URL готов]
+    BuildDeepLink_Android --> FinalURL_Android[Финальный Android URL готов]
 
     FinalURL_iOS --> ReturnToApp[Вернуть URL в приложение]
     FinalURL_Android --> ReturnToApp
@@ -281,7 +281,7 @@ flowchart TD
     GetToken --> ExtractToken[Извлечь auth_token из API №1]
     ExtractToken --> BuildRequest_Token[Построить GET запрос:<br/>URL: document.uri<br/>Headers:<br/>- Authorization: Bearer {auth_token}<br/>- Accept-Language: ru/kk/en]
 
-    PostEds --> GenerateXML[Сгенерировать XML для подписания:<br/><?xml version="1.0" encoding="UTF-8"?><br/><login><br/>  <url>API №2 URL</url><br/>  <timeStamp>текущее время</timeStamp><br/></login>]
+    PostEds --> GenerateXML[Сгенерировать XML для подписания<br/>с URL и timestamp]
     GenerateXML --> SignXML[Подписать XML с помощью<br/>AUTH_*.p12 ключа пользователя]
     SignXML --> BuildRequest_Eds[Построить POST запрос:<br/>URL: document.uri<br/>Headers: <br/>- Content-Type: application/json<br/>- Accept-Language: ru/kk/en<br/>Body: {"xml": "signed xml string"}]
 
@@ -442,9 +442,7 @@ flowchart TD
 
     EncodeBase64 --> BuildJSON[Построить JSON строку:<br/>{<br/>  "signature": "signature_base64",<br/>  "certificate": "certificate_base64"<br/>}]
 
-    BuildJSON --> EscapeJSON[Экранировать спецсимволы<br/>для вложенного JSON]
-
-    EscapeJSON --> ReplaceData[Заменить document.file.data<br/>на JSON строку]
+    BuildJSON --> ReplaceData[Заменить document.file.data<br/>на JSON строку]
 
     ReplaceData --> CheckMime{Проверить<br/>MIME тип}
 
@@ -458,7 +456,7 @@ flowchart TD
     MoreDocs -->|Да| LoopDocs
     MoreDocs -->|Нет| Complete[Все документы подписаны]
 
-    Complete --> ExampleOutput[Пример результата для одного документа:<br/>"data": "{\"signature\":\"BASE64_STRING\",\"certificate\":\"BASE64_CERT\"}"]
+    Complete --> ExampleOutput[Результат: JSON с signature и certificate]
 
     ExampleOutput --> End([Готово к отправке])
 ```
@@ -686,7 +684,7 @@ flowchart TD
 
     ValidateToken -->|Да| BuildToken[Построить запрос:<br/>Метод: GET<br/>URL: document.uri<br/>Headers:<br/>- Authorization: Bearer {auth_token}<br/>- Accept-Language: ru/kk/en]
 
-    FlowEds --> GenerateEdsXML[Сгенерировать XML:<br/><?xml version="1.0" encoding="UTF-8"?><br/><login><br/>  <url>{document.uri}</url><br/>  <timeStamp>{текущее время}</timeStamp><br/></login>]
+    FlowEds --> GenerateEdsXML[Сгенерировать XML<br/>с URL и timestamp]
 
     GenerateEdsXML --> SelectAuthKey[Выбрать AUTH_*.p12 ключ<br/>пользователя]
 
