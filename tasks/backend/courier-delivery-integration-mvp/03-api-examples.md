@@ -450,6 +450,115 @@ curl -X GET "https://api.coube.kz/api/v1/integration/courier/orders/status?track
 
 ---
 
+## 2.1. Редактирование маршрутного листа логистом
+
+### Request
+
+**Endpoint**: `PUT /api/v1/courier/waybills/{id}`
+**Authentication**: `Bearer {keycloak-token}` (роль LOGISTICIAN)
+**Content-Type**: `application/json`
+
+**Описание**: Редактирование импортированного маршрутного листа. Доступно только для маршрутов в статусе FORMING.
+
+```json
+{
+  "deliveries": [
+    {
+      "id": 5001,
+      "sort": 1,
+      "isCourierWarehouse": true,
+      "loadType": "loading",
+      "warehouseId": "WH-TEEZ-001",
+      "address": "Алматы, ул. Абая 150, склад TEEZ",
+      "latitude": 43.2220,
+      "longitude": 76.8512,
+      "orders": []
+    },
+    {
+      "id": 5002,
+      "sort": 2,
+      "isCourierWarehouse": false,
+      "loadType": "unloading",
+      "address": "Алматы, мкр. Самал-1, дом 10",  // Изменен адрес
+      "latitude": 43.2400,
+      "longitude": 76.9600,
+      "deliveryDesiredDatetime": "2025-01-07T11:00:00Z",  // Изменено время
+      "isSmsRequired": true,
+      "isPhotoRequired": true,
+      "receiver": {
+        "name": "Иванов Иван Иванович",
+        "phone": "+77771234567"
+      },
+      "orders": [
+        {
+          "trackNumber": "TRACK-123456",  // READ-ONLY
+          "externalId": "ORDER-TEEZ-001"   // READ-ONLY
+        }
+      ]
+    },
+    {
+      "id": null,  // Новая точка
+      "sort": 3,
+      "isCourierWarehouse": false,
+      "loadType": "unloading",
+      "address": "Алматы, ул. Сатпаева 90",
+      "latitude": 43.2350,
+      "longitude": 76.9300,
+      "deliveryDesiredDatetime": "2025-01-07T14:00:00Z",
+      "receiver": {
+        "name": "Новый получатель",
+        "phone": "+77012345678"
+      },
+      "orders": []
+    },
+    {
+      "id": 5004,
+      "sort": 4,
+      "isCourierWarehouse": true,
+      "loadType": "unloading",
+      "warehouseId": "WH-TEEZ-001",
+      "address": "Алматы, ул. Абая 150, склад TEEZ",
+      "orders": []
+    }
+  ]
+}
+```
+
+### Response (Success)
+
+**Status**: `200 OK`
+
+```json
+{
+  "status": "success",
+  "transportationId": 12345,
+  "externalWaybillId": "WB-2025-001",
+  "message": "Waybill updated successfully",
+  "statistics": {
+    "totalPoints": 4,
+    "addedPoints": 1,
+    "removedPoints": 1,
+    "modifiedPoints": 1
+  }
+}
+```
+
+### Response (Invalid Status)
+
+**Status**: `409 Conflict`
+
+```json
+{
+  "status": "error",
+  "error": "INVALID_STATUS",
+  "message": "Waybill cannot be edited in current status",
+  "currentStatus": "SIGNED_CUSTOMER",
+  "allowedStatuses": ["FORMING"]
+}
+```
+
+---
+
 ## 3. Курьер: Список заявок
 
 ### Request
