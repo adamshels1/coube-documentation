@@ -73,16 +73,19 @@ enum.transportation-type.COURIER_DELIVERY.zh=快递
 @Entity
 @Table(name = "transportation", schema = "applications")
 public class Transportation extends BaseIdEntity {
-  
+
   // ... existing fields
-  
+
   // Новые поля для курьерской доставки
   @Column(name = "source_system")
   private String sourceSystem; // TEEZ_PVZ, KASPI, WILDBERRIES, OZON
-  
+
   @Column(name = "external_waybill_id")
   private String externalWaybillId; // ID маршрутного листа из внешней системы
-  
+
+  @Column(name = "org_id")
+  private String orgId; // ID организации для уникальной идентификации
+
   // Используем СУЩЕСТВУЮЩИЙ TransportationStatus для статусов!
   // FORMING → SIGNED_CUSTOMER → WAITING_DRIVER_CONFIRMATION → DRIVER_ACCEPTED → ON_THE_WAY → FINISHED
 }
@@ -353,21 +356,17 @@ $$;
 ALTER TABLE applications.transportation
 ADD COLUMN IF NOT EXISTS source_system TEXT,
 ADD COLUMN IF NOT EXISTS external_waybill_id TEXT,
-ADD COLUMN IF NOT EXISTS courier_validation_status TEXT DEFAULT 'imported';
+ADD COLUMN IF NOT EXISTS org_id TEXT;
 
--- Индексы
-CREATE INDEX IF NOT EXISTS idx_transportation_external_waybill 
-ON applications.transportation(external_waybill_id, source_system) 
-WHERE transportation_type = 'COURIER_DELIVERY';
-
-CREATE INDEX IF NOT EXISTS idx_transportation_courier_validation 
-ON applications.transportation(courier_validation_status) 
+-- Индексы (составной индекс для уникальной идентификации)
+CREATE INDEX IF NOT EXISTS idx_transportation_external_waybill
+ON applications.transportation(external_waybill_id, source_system, org_id)
 WHERE transportation_type = 'COURIER_DELIVERY';
 
 -- Комментарии
 COMMENT ON COLUMN applications.transportation.source_system IS 'Внешняя система-источник (TEEZ_PVZ, KASPI, WILDBERRIES, OZON)';
 COMMENT ON COLUMN applications.transportation.external_waybill_id IS 'ID маршрутного листа из внешней системы';
-COMMENT ON COLUMN applications.transportation.courier_validation_status IS 'Статус валидации курьерского маршрута (imported, validated, assigned, closed)';
+COMMENT ON COLUMN applications.transportation.org_id IS 'ID организации для уникальной идентификации';
 ```
 
 ### V2025_01_20_03__add_courier_fields_to_cargo_loading.sql
@@ -508,10 +507,13 @@ public class CourierIntegrationService {
     Instant startTime = Instant.now();
     
     try {
-      // 1. Проверяем дубликаты
+      // 1. Проверяем дубликаты по комбинированному ключу
       Optional<Transportation> existing = transportationService
-          .findByExternalWaybillId(request.getSourceSystem(), request.getWaybill().getId());
-      
+          .findByExternalWaybillIdAndSourceSystemAndOrgId(
+              request.getWaybill().getId(),
+              request.getSourceSystem(),
+              request.getOrgId());
+
       if (existing.isPresent()) {
         // Если статус FORMING - можно обновить, иначе - locked
         Transportation t = existing.get();
@@ -521,12 +523,19 @@ public class CourierIntegrationService {
         // Обновляем существующий
         return updateWaybill(t, request);
       }
+
+      // Валидация responsibleManagerContactInfo (необязательно только для TEEZ)
+      if (!"TEEZ_PVZ".equals(request.getSourceSystem())
+          && request.getWaybill().getResponsibleManagerContactInfo() == null) {
+        throw new ValidationException("responsibleManagerContactInfo is required for non-TEEZ systems");
+      }
       
       // 2. Создаем новую Transportation
       Transportation transportation = new Transportation();
       transportation.setTransportationType(TransportationType.COURIER_DELIVERY);
       transportation.setSourceSystem(request.getSourceSystem());
       transportation.setExternalWaybillId(request.getWaybill().getId());
+      transportation.setOrgId(request.getOrgId());
       transportation.setStatus(TransportationStatus.FORMING); // Черновик
       transportation.setFillingStep(TransportationFillingStep.ROUTE); // Маршрут заполняется из импорта
       
@@ -630,6 +639,44 @@ public class CourierIntegrationService {
     return routeService.save(routeHistory); // ← Используем существующий сервис!
   }
   
+  /**
+   * Реимпорт маршрутного листа (обновление)
+   */
+  @Transactional
+  public Transportation reimportWaybill(WaybillImportRequest request) {
+    // Поиск существующего маршрута по комбинированному ключу
+    Transportation existing = transportationService
+        .findByExternalWaybillIdAndSourceSystemAndOrgId(
+            request.getWaybill().getId(),
+            request.getSourceSystem(),
+            request.getOrgId())
+        .orElseThrow(() -> new NotFoundException("Waybill not found for reimport"));
+
+    // Проверка источника - можно реимпортировать только из той же системы
+    if (!existing.getSourceSystem().equals(request.getSourceSystem())) {
+      throw new ForbiddenException("Cannot reimport from different source system");
+    }
+
+    // Проверка статуса - можно реимпортировать только IMPORTED без изменений из UI
+    if (!TransportationStatus.FORMING.equals(existing.getStatus())) {
+      throw new ForbiddenException("Waybill has been modified and cannot be reimported");
+    }
+
+    // Проверка что не было изменений из UI (можно добавить дополнительное поле lastModifiedBy)
+    if (existing.getLastModifiedBy() != null && !"SYSTEM_IMPORT".equals(existing.getLastModifiedBy())) {
+      throw new ForbiddenException("Waybill has been modified in UI and cannot be reimported");
+    }
+
+    // Полное обновление всех полей
+    existing = updateWaybill(existing, request);
+
+    // Логирование реимпорта
+    logIntegration("incoming", request.getSourceSystem(), "POST", "/waybills/reimport",
+                   200, toJson(request), toJson(existing), "reimport_success", null, existing);
+
+    return existing;
+  }
+
   /**
    * Получение статусов заказов для внешней системы
    */

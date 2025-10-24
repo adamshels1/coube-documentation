@@ -33,7 +33,8 @@
 - [ ] **V2025_01_20_02__add_courier_fields_to_transportation.sql**
   - [ ] `source_system TEXT`
   - [ ] `external_waybill_id TEXT`
-  - [ ] Индексы на внешние ключи
+  - [ ] `org_id TEXT` (для идентификации организации)
+  - [ ] Индексы на внешние ключи (составной индекс на external_waybill_id + source_system + org_id)
   - [ ] НЕ ДОБАВЛЯЕМ courier_validation_status (используем существующий TransportationStatus!)
 
 - [ ] **V2025_01_20_03__add_courier_fields_to_cargo_loading.sql**
@@ -117,10 +118,13 @@
   ```java
   @Column(name = "source_system")
   private String sourceSystem;
-  
+
   @Column(name = "external_waybill_id")
   private String externalWaybillId;
-  
+
+  @Column(name = "org_id")
+  private String orgId;
+
   // НЕ ДОБАВЛЯЕМ courierValidationStatus - используем существующий status!
   ```
 
@@ -188,9 +192,12 @@
   ```
 
 - [ ] **WaybillHeader.java**
+  - [ ] warehouseExternalId вместо responsibleWarehouseId
+  - [ ] responsibleManagerContactInfo (необязательное для TEEZ)
+  - [ ] Валидация: responsibleManagerContactInfo обязательно для всех кроме TEEZ
 - [ ] **DeliveryPoint.java**
 - [ ] **ReceiverInfo.java**
-- [ ] **OrderInfo.java**
+- [ ] **OrderInfo.java** (без teezPostId)
 - [ ] **PositionInfo.java**
 
 **Response DTOs**:
@@ -293,18 +300,22 @@
 - [ ] Создать `kz.coube.backend.courier.service.CourierIntegrationService`
 
 - [ ] Метод `importWaybill(WaybillImportRequest request)`
-  - [ ] Проверка дубликатов по `external_waybill_id`
+  - [ ] Проверка дубликатов по комбинации: `external_waybill_id + source_system + org_id`
   - [ ] Создание `Transportation` с типом `COURIER_DELIVERY`
+  - [ ] Заполнение `orgId` для идентификации организации
   - [ ] Создание `TransportationRouteHistory` через `TransportationRouteService`
   - [ ] Создание `CargoLoadingHistory` для каждой точки
   - [ ] Создание `CourierRouteOrder` для каждого заказа
   - [ ] Логирование в `CourierIntegrationLog`
   - [ ] Обработка ошибок
+  - [ ] Обработка необязательного поля `responsibleManagerContactInfo` для TEEZ
 
-- [ ] Метод `updateWaybill(Transportation t, WaybillImportRequest request)`
-  - [ ] Проверка статуса (можно обновлять только IMPORTED)
-  - [ ] Обновление маршрута
-  - [ ] Логирование
+- [ ] Метод `reimportWaybill(WaybillImportRequest request)`
+  - [ ] Проверка идентичности источника (source_system)
+  - [ ] Проверка статуса (можно реимпортировать только IMPORTED без изменений из UI)
+  - [ ] Полное обновление всех полей маршрутного листа
+  - [ ] Логирование версий (предыдущая и новая)
+  - [ ] Запрет реимпорта после любых изменений из UI
 
 - [ ] Метод `getOrderStatuses(String externalWaybillId, String sourceSystem)`
   - [ ] Поиск Transportation
@@ -326,6 +337,13 @@
   - [ ] `@Valid` валидация request
   - [ ] Вызов `courierIntegrationService.importWaybill()`
   - [ ] Обработка ошибок
+  - [ ] Swagger аннотации
+
+- [ ] `POST /waybills/reimport` - реимпорт маршрутного листа
+  - [ ] `@Valid` валидация request
+  - [ ] Вызов `courierIntegrationService.reimportWaybill()`
+  - [ ] Обработка ошибок для заблокированных маршрутов
+  - [ ] Возврат 403 Forbidden если маршрут был изменен в UI
   - [ ] Swagger аннотации
 
 - [ ] `GET /waybills/{externalWaybillId}/orders` - статусы заказов
@@ -357,12 +375,14 @@
 
 - [ ] `CourierIntegrationServiceTest`
   - [ ] Тест успешного импорта
-  - [ ] Тест импорта дубликата
-  - [ ] Тест обновления IMPORTED статуса
-  - [ ] Тест блокировки обновления VALIDATED статуса
+  - [ ] Тест импорта дубликата (по комбинированному ключу)
+  - [ ] Тест успешного реимпорта IMPORTED статуса
+  - [ ] Тест блокировки реимпорта после изменений из UI
+  - [ ] Тест блокировки реимпорта из другой системы
   - [ ] Тест создания маршрута с точками
   - [ ] Тест создания заказов
   - [ ] Тест получения статусов заказов
+  - [ ] Тест необязательного поля responsibleManagerContactInfo для TEEZ
 
 ### 2.6 Integration Tests для Controllers
 

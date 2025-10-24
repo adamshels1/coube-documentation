@@ -22,38 +22,40 @@
 
 ```json
 {
-  "source_system": "TEEZ_PVZ",
+  "sourceSystem": "TEEZ_PVZ",
+  "orgId": "ORG-TEEZ-001",
   "waybill": {
     "id": "WB-2025-001",
-    "delivery_type": "courier",
-    "target_delivery_day": "2025-01-07"
+    "deliveryType": "courier",
+    "warehouseExternalId": "WH-TEEZ-001",
+    "targetDeliveryDay": "2025-01-07"
   },
   "deliveries": [
     {
       "sort": 1,
-      "is_courier_warehouse": true,
-      "load_type": "loading",
-      "warehouse_id": "WH-TEEZ-001",
+      "isCourierWarehouse": true,
+      "loadType": "loading",
+      "warehouseId": "WH-TEEZ-001",
       "address": "Алматы, ул. Абая 150, склад TEEZ",
       "latitude": 43.2220,
       "longitude": 76.8512,
-      "is_sms_required": false,
-      "is_photo_required": false,
+      "isSmsRequired": false,
+      "isPhotoRequired": false,
       "comment": "Забрать посылки со склада",
       "orders": []
     },
     {
       "sort": 2,
-      "is_courier_warehouse": false,
-      "load_type": "unloading",
+      "isCourierWarehouse": false,
+      "loadType": "unloading",
       "address": "Алматы, мкр. Самал-2, дом 58, кв. 12",
       "latitude": 43.2385,
       "longitude": 76.9562,
-      "delivery_desired_datetime": "2025-01-07T10:00:00Z",
-      "delivery_desired_datetime_after": "2025-01-07T09:00:00Z",
-      "delivery_desired_datetime_before": "2025-01-07T18:00:00Z",
-      "is_sms_required": true,
-      "is_photo_required": true,
+      "deliveryDesiredDatetime": "2025-01-07T10:00:00Z",
+      "deliveryDesiredDatetimeAfter": "2025-01-07T09:00:00Z",
+      "deliveryDesiredDatetimeBefore": "2025-01-07T18:00:00Z",
+      "isSmsRequired": true,
+      "isPhotoRequired": true,
       "receiver": {
         "name": "Иванов Иван Иванович",
         "phone": "+77771234567"
@@ -61,17 +63,17 @@
       "comment": "Домофон 12, звонить за 15 минут",
       "orders": [
         {
-          "track_number": "TRACK-123456",
-          "external_id": "ORDER-TEEZ-001",
-          "order_load_type": "unload",
+          "trackNumber": "TRACK-123456",
+          "externalId": "ORDER-TEEZ-001",
+          "orderLoadType": "unload",
           "positions": [
             {
-              "position_code": "POS-001",
-              "position_shortname": "Товар 1"
+              "positionCode": "POS-001",
+              "positionShortname": "Товар 1"
             },
             {
-              "position_code": "POS-002",
-              "position_shortname": "Товар 2"
+              "positionCode": "POS-002",
+              "positionShortname": "Товар 2"
             }
           ]
         }
@@ -79,27 +81,27 @@
     },
     {
       "sort": 3,
-      "is_courier_warehouse": false,
-      "load_type": "unloading",
+      "isCourierWarehouse": false,
+      "loadType": "unloading",
       "address": "Алматы, пр. Достык 97, офис 301",
       "latitude": 43.2350,
       "longitude": 76.9450,
-      "delivery_desired_datetime": "2025-01-07T14:00:00Z",
-      "is_sms_required": false,
-      "is_photo_required": true,
+      "deliveryDesiredDatetime": "2025-01-07T14:00:00Z",
+      "isSmsRequired": false,
+      "isPhotoRequired": true,
       "receiver": {
         "name": "Петрова Анна",
         "phone": "+77779876543"
       },
       "orders": [
         {
-          "track_number": "TRACK-123457",
-          "external_id": "ORDER-TEEZ-002",
-          "order_load_type": "unload",
+          "trackNumber": "TRACK-123457",
+          "externalId": "ORDER-TEEZ-002",
+          "orderLoadType": "unload",
           "positions": [
             {
-              "position_code": "POS-003",
-              "position_shortname": "Документы"
+              "positionCode": "POS-003",
+              "positionShortname": "Документы"
             }
           ]
         }
@@ -107,14 +109,14 @@
     },
     {
       "sort": 4,
-      "is_courier_warehouse": true,
-      "load_type": "unloading",
-      "warehouse_id": "WH-TEEZ-001",
+      "isCourierWarehouse": true,
+      "loadType": "unloading",
+      "warehouseId": "WH-TEEZ-001",
       "address": "Алматы, ул. Абая 150, склад TEEZ",
       "latitude": 43.2220,
       "longitude": 76.8512,
-      "is_sms_required": false,
-      "is_photo_required": false,
+      "isSmsRequired": false,
+      "isPhotoRequired": false,
       "comment": "Возврат на склад",
       "orders": []
     }
@@ -129,12 +131,12 @@
 ```json
 {
   "status": "imported",
-  "transportation_id": 12345,
-  "external_waybill_id": "WB-2025-001",
-  "courier_validation_status": "IMPORTED",
-  "route_points_count": 4,
-  "orders_count": 2,
-  "created_at": "2025-01-06T12:00:00Z",
+  "transportationId": 12345,
+  "externalWaybillId": "WB-2025-001",
+  "orgId": "ORG-TEEZ-001",
+  "routePointsCount": 4,
+  "ordersCount": 2,
+  "createdAt": "2025-01-06T12:00:00Z",
   "message": "Waybill imported successfully"
 }
 ```
@@ -146,12 +148,12 @@
 ```json
 {
   "status": "updated",
-  "transportation_id": 12345,
-  "external_waybill_id": "WB-2025-001",
-  "courier_validation_status": "IMPORTED",
-  "route_points_count": 4,
-  "orders_count": 2,
-  "updated_at": "2025-01-06T12:30:00Z",
+  "transportationId": 12345,
+  "externalWaybillId": "WB-2025-001",
+  "orgId": "ORG-TEEZ-001",
+  "routePointsCount": 4,
+  "ordersCount": 2,
+  "updatedAt": "2025-01-06T12:30:00Z",
   "message": "Waybill updated successfully"
 }
 ```
@@ -165,8 +167,9 @@
   "status": "locked",
   "error": "WAYBILL_LOCKED",
   "message": "Waybill already validated and cannot be updated",
-  "external_waybill_id": "WB-2025-001",
-  "current_status": "VALIDATED"
+  "externalWaybillId": "WB-2025-001",
+  "orgId": "ORG-TEEZ-001",
+  "currentStatus": "VALIDATED"
 }
 ```
 
@@ -192,6 +195,76 @@
       "value": []
     }
   ]
+}
+```
+
+---
+
+## 1.1. Реимпорт маршрутного листа от TEEZ (обновление)
+
+### Request
+
+**Endpoint**: `POST /api/v1/integration/waybills/reimport`
+**Authentication**: `X-API-Key: {your-api-key}`
+**Content-Type**: `application/json`
+
+**Описание**: Обновление ранее импортированного маршрутного листа. Возможно только для маршрутов в статусе "импортированный черновик", до внесения изменений из UI.
+
+```json
+{
+  "sourceSystem": "TEEZ_PVZ",
+  "orgId": "ORG-TEEZ-001",
+  "waybill": {
+    "id": "WB-2025-001",
+    "deliveryType": "courier",
+    "warehouseExternalId": "WH-TEEZ-001",
+    "responsibleManagerContactInfo": {
+      "name": "Менеджер Алишер",
+      "phone": "+7 000 000000"
+    },
+    "targetDeliveryDay": "2025-01-07"
+  },
+  "deliveries": [
+    // ... полная структура как при первичном импорте
+  ]
+}
+```
+
+**Важные ограничения**:
+- Возможно только из той же системы, из которой был первичный импорт
+- Маршрут должен быть в статусе "импортированный черновик" (IMPORTED)
+- После любых изменений из UI реимпорт заблокирован
+- Идентификация по комбинации: externalWaybillId + sourceSystem + orgId
+
+### Response (Success)
+
+**Status**: `200 OK`
+
+```json
+{
+  "status": "reimported",
+  "transportationId": 12345,
+  "externalWaybillId": "WB-2025-001",
+  "orgId": "ORG-TEEZ-001",
+  "previousVersion": 1,
+  "newVersion": 2,
+  "updatedAt": "2025-01-06T13:00:00Z",
+  "message": "Waybill reimported successfully"
+}
+```
+
+### Response (Forbidden)
+
+**Status**: `403 Forbidden`
+
+```json
+{
+  "status": "forbidden",
+  "error": "WAYBILL_MODIFIED",
+  "message": "Waybill has been modified in UI and cannot be reimported",
+  "externalWaybillId": "WB-2025-001",
+  "lastModifiedBy": "logist@teez.kz",
+  "lastModifiedAt": "2025-01-06T12:45:00Z"
 }
 ```
 
