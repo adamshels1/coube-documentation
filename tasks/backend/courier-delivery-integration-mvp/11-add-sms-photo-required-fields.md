@@ -261,7 +261,7 @@ PUT /api/v1/courier/orders/1229/courier-orders/2617/status
 
 ## Тестирование
 
-### 1. Проверить GET /api/v1/driver/orders
+### 1. Проверить GET /api/v1/driver/orders (список заявок)
 
 **Шаг 1**: Добавить тестовые данные в БД
 ```sql
@@ -291,7 +291,35 @@ curl -X GET "https://stage-platform.coube.kz/api/v1/driver/orders" \
 
 ---
 
-### 2. Проверить PUT endpoint с ролью DRIVER
+### 2. Проверить GET /api/v1/driver/orders/{transportationId} (одна заявка)
+
+**Важно**: Этот endpoint тоже использует `CargoLoadingResponse`, поэтому автоматически получит новые поля! ✅
+
+**Шаг 1**: Вызвать API для одной заявки
+```bash
+curl -X GET "https://stage-platform.coube.kz/api/v1/driver/orders/1229" \
+  -H "Authorization: Bearer {driver_token}"
+```
+
+**Ожидаемый результат**:
+```json
+{
+  "transportationMainInfoResponse": {
+    "id": 1229
+  },
+  "transportationCargoInfoResponse": {
+    "cargoLoadings": [{
+      "id": 2617,
+      "isSmsRequired": true,
+      "isPhotoRequired": false
+    }]
+  }
+}
+```
+
+---
+
+### 3. Проверить PUT endpoint с ролью DRIVER
 
 **До изменений**: 403 Forbidden
 ```bash
@@ -345,6 +373,12 @@ if (point.getIsSmsRequired() &&
 
 ✅ **Мобилка**: Полностью готова, ждет только эти 2 поля
 
+✅ **Оба endpoint'а автоматически обновятся**:
+- `GET /api/v1/driver/orders` (список) - используется на главном экране
+- `GET /api/v1/driver/orders/{id}` (одна заявка) - используется при открытии деталей
+
+Оба используют `CargoLoadingResponse`, поэтому одно изменение = оба endpoint'а обновлены! 🎯
+
 ---
 
 ## Что нужно сделать
@@ -355,18 +389,24 @@ if (point.getIsSmsRequired() &&
 3. ❌ `CourierWaybillController.java` - добавить `KeycloakRole.DRIVER` в `@AuthorizationRequired`
 
 ### Testing
-4. ❌ Проверить GET /api/v1/driver/orders возвращает новые поля
-5. ❌ Проверить PUT endpoint доступен для роли DRIVER
+4. ❌ Проверить GET /api/v1/driver/orders возвращает новые поля (список)
+5. ❌ Проверить GET /api/v1/driver/orders/{id} возвращает новые поля (одна заявка)
+6. ❌ Проверить PUT endpoint доступен для роли DRIVER
 
 ---
 
 ## Testing Checklist
 
-### API Response
-- [ ] Поле `isSmsRequired` возвращается в response
-- [ ] Поле `isPhotoRequired` возвращается в response
+### API Response (GET /api/v1/driver/orders)
+- [ ] Поле `isSmsRequired` возвращается в response (список заявок)
+- [ ] Поле `isPhotoRequired` возвращается в response (список заявок)
 - [ ] Поля nullable (могут быть null)
 - [ ] Значения соответствуют БД
+
+### API Response (GET /api/v1/driver/orders/{id})
+- [ ] Поле `isSmsRequired` возвращается в response (одна заявка)
+- [ ] Поле `isPhotoRequired` возвращается в response (одна заявка)
+- [ ] Endpoint работает для водителя (роль DRIVER)
 
 ### Доступ к endpoint
 - [ ] Роль DRIVER может вызвать PUT endpoint
