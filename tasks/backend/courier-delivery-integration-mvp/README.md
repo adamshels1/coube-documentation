@@ -33,6 +33,7 @@
 10. **09-logist-edit-waybill-api.md** - API редактирования маршрутов логистом
 11. **10-courier-order-status-update-endpoint.md** - Endpoint обновления статуса заказа курьера
 12. **11-add-sms-photo-required-fields.md** ⭐ - Добавление полей isSmsRequired и isPhotoRequired в API (NEW)
+13. **15-add-weight-volume-fields.md** - Добавление полей "Общий вес" и "Общий объем"
 
 ---
 
