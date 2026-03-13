@@ -1,0 +1,225 @@
+# API для получения статусов заказов TEEZ - Краткое резюме
+
+## Суть интеграции
+
+**Pull-модель (TEEZ запрашивает данные из Coube)**:
+```
+TEEZ → GET статусы по track_numbers → Coube
+        (polling каждые 5-10 минут)
+```
+
+---
+
+## Почему Pull-модель?
+
+### Преимущества:
+1. ✅ TEEZ контролирует частоту получения данных
+2. ✅ Нет необходимости в webhook endpoint на стороне TEEZ
+3. ✅ Упрощается логика на стороне Coube (нет очередей, нет retry)
+4. ✅ TEEZ сам управляет retry-логикой
+5. ✅ Снижается coupling между системами
+6. ✅ Проще масштабировать и поддерживать
+
+---
+
+## Что нужно реализовать?
+
+### Endpoint для TEEZ
+
+**Endpoint**: `GET /api/v1/integration/courier/orders/status`
+
+**Параметры**:
+- `track_numbers` (query) - список трек-номеров через запятую (до 100)
+- `source_system` (query) - default: `TEEZ_PVZ`
+
+**Аутентификация**: `X-API-Key` header
+
+**Пример запроса**:
+```bash
+GET /api/v1/integration/courier/orders/status?track_numbers=TRACK-123,TRACK-456,TRACK-789&source_system=TEEZ_PVZ
+X-API-Key: {teez-api-key}
+```
+
+**Пример ответа** (200 OK):
+```json
+{
+  "orders": [
+    {
+      "track_number": "TRACK-123",
+      "external_id": "ORDER-TEEZ-001",
+      "status": "with_courier",
+      "status_reason": null,
+      "status_datetime": "2025-01-07T09:00:00Z",
+      "delivery_datetime": null,
+      "photo_url": null,
+      "receiver_name": "Иванов Иван",
+      "receiver_phone": "+77771234567",
+      "delivery_address": "Алматы, мкр. Самал-2, дом 58",
+      "courier_comment": null,
+      "positions": [...]
+    },
+    {
+      "track_number": "TRACK-456",
+      "external_id": "ORDER-TEEZ-002",
+      "status": "delivered",
+      "status_reason": null,
+      "status_datetime": "2025-01-07T14:05:00Z",
+      "delivery_datetime": "2025-01-07T14:05:00Z",
+      "photo_url": "https://s3.coube.kz/courier/photos/456.jpg",
+      "positions": [...]
+    },
+    {
+      "track_number": "TRACK-789",
+      "external_id": "ORDER-TEEZ-003",
+      "status": "not_delivered",
+      "status_reason": "customer_not_available",
+      "status_datetime": "2025-01-07T15:30:00Z",
+      "delivery_datetime": null,
+      "courier_comment": "Клиент не отвечает",
+      "positions": [...]
+    }
+  ],
+  "not_found": ["TRACK-999"]
+}
+```
+
+---
+
+## Статусы для TEEZ
+
+### 4 основных статуса:
+
+| Coube Status | TEEZ Mapping | Когда используется |
+|--------------|--------------|-------------------|
+| `with_courier` | "Заказ у курьера" | Курьер начал маршрут |
+| `delivered` | "Доставлено курьером" | Успешная доставка |
+| `not_delivered` | "Курьер не смог доставить" | Недоставка (с причиной) |
+| `returned_to_sender` | "Возвращено отправителю" | Возврат на склад TEEZ |
+
+### Причины недоставки (status_reason):
+
+| Reason Code | Описание |
+|-------------|----------|
+| `customer_not_available` | Клиент недоступен |
+| `customer_refused` | Клиент отказался |
+| `customer_postponed` | Клиент попросил перенести |
+| `address_not_found` | Адрес не найден |
+| `other` | Другая причина |
+
+### Как различать статусы 3 и 4?
+
+**Статус 3** (`not_delivered`):
+- Курьер не смог доставить заказ
+- `status_reason` указывает причину
+- Заказ еще у курьера или в процессе возврата
+
+**Статус 4** (`returned_to_sender`):
+- Заказ физически вернулся на склад TEEZ
+- Курьер отметил возврат на точке с `is_courier_warehouse: true`
+
+---
+
+## Backend реализация
+
+### Компоненты:
+
+1. **Controller**: `CourierIntegrationController`
+   - GET `/api/v1/integration/courier/orders/status`
+
+2. **Service**: `CourierOrderStatusService`
+   - `getOrdersStatus(trackNumbers, sourceSystem)`
+   - Возвращает актуальные статусы заказов
+
+3. **DTOs**:
+   - `OrderStatusResponseDTO`
+   - `OrderStatusDTO`
+   - `PositionDTO`
+
+4. **Database queries**:
+   - Запрос по `track_number` и `source_system`
+   - Джоины с `courier_route_order`, `transportation`
+
+---
+
+## Rate Limiting
+
+**Ограничения**:
+- ⏱️ **60 запросов в минуту** на API key
+- ⏱️ **1000 запросов в час** на API key
+- 📦 **100 трек-номеров максимум** за один запрос
+
+**Response при превышении** (429):
+```json
+{
+  "error": "RATE_LIMIT_EXCEEDED",
+  "message": "Rate limit exceeded. Try again later",
+  "retry_after_seconds": 60
+}
+```
+
+---
+
+## Рекомендации для TEEZ
+
+1. **Частота polling**: Каждые **5-10 минут**
+2. **Batch requests**: Отправляйте до 100 трек-номеров за раз
+3. **Обработка not_found**: Заказ еще не создан или неверный номер
+4. **Retry policy**: При `429` используйте exponential backoff
+5. **Обработка статусов**:
+   - `with_courier` → заказ в доставке
+   - `delivered` → заказ доставлен
+   - `not_delivered` → смотрите `status_reason`
+   - `returned_to_sender` → заказ вернулся на склад
+
+---
+
+## Рекомендуемый flow
+
+```
+1. TEEZ создает маршрутный лист
+   POST /api/v1/integration/waybills
+
+2. TEEZ запускает периодический polling (каждые 5-10 минут)
+   GET /api/v1/integration/courier/orders/status
+
+3. TEEZ получает статусы и обновляет свою систему
+   - with_courier → "Заказ у курьера"
+   - delivered → "Доставлено курьером"
+   - not_delivered → "Курьер не смог доставить"
+   - returned_to_sender → "Возвращено отправителю"
+
+4. При 429 ошибке - exponential backoff
+```
+
+---
+
+## Открытые вопросы для TEEZ
+
+1. ❓ Подходит ли частота polling каждые 5-10 минут?
+2. ❓ Сколько заказов в среднем в одном маршруте?
+3. ❓ Нужен ли webhook-notification вместо polling? (опционально)
+4. ❓ Какой timeout для получения статусов?
+5. ❓ Нужна ли пагинация для больших маршрутов (100+ заказов)?
+
+---
+
+## Ссылки
+
+- **Детальная документация**: `03-api-examples.md` (раздел 2 и 10)
+- **Подробный endpoint spec**: `07-webhook-results-endpoint.md`
+- **БД**: таблицы `courier_route_order`, `transportation`, `courier_integration_log`
+
+---
+
+**Дата создания**: 2025-10-16
+**Последнее обновление**: 2025-10-16
+**Статус**: Updated - Ready for Implementation
+
+## Что изменилось?
+
+**16.10.2025**: Изменен подход на основе требований TEEZ
+- ❌ Убрали endpoint по `waybill_id`
+- ✅ Добавили endpoint по списку `track_numbers`
+- ✅ Упростили интеграцию для TEEZ (запрос по номерам заказов)
+- ✅ Добавили 4 статуса согласно требованиям TEEZ
+- ✅ Добавили маппинг статусов Coube → TEEZ

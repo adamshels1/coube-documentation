@@ -1,0 +1,225 @@
+# Задача: Интеграция курьерской доставки - Итоговая сводка
+
+## 📋 Описание задачи
+
+Реализация **универсального** функционала курьерской доставки в платформе Coube с интеграцией с маркетплейсами (TEEZ_PVZ, Kaspi, Wildberries, Ozon) через REST API.
+
+**Основные требования**:
+1. Добавление роли **водитель-курьер** (используется существующая роль `DRIVER`)
+2. Новый тип заявки **курьерская доставка** (`COURIER_DELIVERY`) - **универсальный для всех маркетплейсов**
+3. **API для приема** маршрутных листов от маркетплейсов (TEEZ_PVZ, Kaspi, Wildberries, Ozon)
+4. **API для отдачи** результатов выполнения обратно в маркетплейсы
+5. **Веб-интерфейс** для логистов (управление маршрутами)
+6. **Мобильное приложение** для курьеров (выполнение доставок)
+
+**🎯 Ключевая особенность**: API **универсальное**, не привязанное к TEEZ. Поддержка любых маркетплейсов через поле `source_system`.
+
+---
+
+## 📂 Структура документации
+
+### [README.md](./README.md)
+Обзор задачи, ключевые бизнес-процессы, статусы маршрутных листов
+
+### [01-database-changes.md](./01-database-changes.md)
+**Изменения в БД**:
+- Новые таблицы: `courier_route_point`, `courier_route_order`, `courier_route_position`, `courier_route_log`, `courier_integration_log`, `courier_warehouse`
+- Обновления: `applications.transportation`, `users.employee`
+- Новые enums: `CourierValidationStatus`, `CourierOrderStatus`, `CourierPointStatus` и др.
+- 10 Flyway миграций
+
+### [02-api-incoming-waybills.md](./02-api-incoming-waybills.md)
+**API для приема маршрутных листов от маркетплейсов** (универсальное):
+- `POST /api/v1/integration/waybills` - создание/обновление маршрутного листа
+- `GET /api/v1/integration/waybills/{id}` - получение маршрутного листа
+- `GET /api/v1/integration/waybills/{id}/orders` - статусы заказов
+- `POST /api/v1/integration/problem-address` - пометка проблемного адреса
+- **Обязательное поле**: `source_system` (TEEZ_PVZ, KASPI, WILDBERRIES, OZON)
+- Примеры для TEEZ, Kaspi, Wildberries
+- Правила валидации
+- Коды ошибок
+- Rate limiting
+
+### [03-api-outgoing-results.md](./03-api-outgoing-results.md)
+**API для отправки результатов в маркетплейсы**:
+- `POST {marketplaceUrl}/api/waybill/results` - отправка результатов доставки
+- Поддержка разных маркетплейсов (TEEZ, Kaspi, Wildberries, Ozon)
+- Механизм ретраев (каждые 30 мин, макс 24 часа)
+- Scheduler job для фоновой отправки
+- Логирование всех интеграций
+- Мониторинг и алерты
+
+### [04-api-web-logist.md](./04-api-web-logist.md)
+**API для веб-интерфейса логиста**:
+- Управление маршрутными листами (список, просмотр, редактирование)
+- Валидация маршрутов
+- Назначение/снятие курьеров
+- Закрытие маршрутов
+- Управление курьерами (создание, обновление)
+- Аналитика и отчеты
+
+### [05-api-mobile-courier.md](./05-api-mobile-courier.md)
+**API для мобильного приложения курьера**:
+- Активный маршрут и история
+- Принятие/отклонение маршрута
+- Начало маршрута
+- Изменение статусов точек и заказов
+- Завершение маршрута
+- Загрузка фото подтверждений
+- Отправка геолокации
+- SOS функционал
+- Сообщение о проблемах
+
+### [06-backend-integration-plan.md](./06-backend-integration-plan.md)
+**План интеграции в существующий backend**:
+- Анализ текущей архитектуры
+- Изменения в существующих компонентах (`Transportation`, `Employee`, `TransportationType`)
+- Новые Entity классы (6 новых)
+- Новые Repository интерфейсы
+- Новые Service классы (5 новых)
+- Новые Controller классы (3 новых)
+- Конфигурация (application.yml, Keycloak)
+- Поэтапное внедрение (6 недель)
+
+### [07-implementation-checklist.md](./07-implementation-checklist.md)
+**Детальный чеклист для разработчиков**:
+- Phase 1: Database Setup (миграции)
+- Phase 2: Entity Classes
+- Phase 3: Repositories
+- Phase 4: DTOs
+- Phase 5: Services
+- Phase 6: Controllers
+- Phase 7: Configuration
+- Phase 8: Integration with TEEZ
+- Phase 9: Notifications
+- Phase 10: Testing
+- Phase 11: Documentation
+- Phase 12: Deployment
+- Phase 13: Monitoring & Alerting
+
+### [08-api-key-authentication.md](./08-api-key-authentication.md)
+**API Key аутентификация (простой вариант)**:
+- Статический API Key вместо OAuth2
+- Хранение в БД с BCrypt хешированием
+- Custom Spring Security Filter
+- Management API для создания/отзыва ключей
+- IP whitelist и rate limiting
+- Отдельный ключ для каждого маркетплейса (TEEZ, Kaspi, Wildberries)
+- Простая интеграция (один заголовок `X-API-Key`)
+
+---
+
+## 🎯 Ключевые моменты
+
+### Переиспользование существующего функционала
+
+✅ **Роль DRIVER** - используется существующая, различие между FLT-водителем и курьером по типу заявки  
+✅ **DriverController** - SOS функционал переиспользуется  
+✅ **DriverLocationService** - геолокация переиспользуется  
+✅ **FileService** - загрузка фото переиспользуется  
+✅ **NotificationService** - уведомления переиспользуются  
+
+### Новый функционал
+
+🆕 **TransportationType.COURIER_DELIVERY** - новый тип перевозки (**универсальный для всех маркетплейсов**)  
+🆕 **CourierRoutePoint** - точки маршрута курьера  
+🆕 **CourierRouteOrder** - заказы в точках  
+🆕 **CourierIntegrationLog** - логи всех интеграций  
+🆕 **CourierWarehouse** - справочник складов/ПВЗ  
+🆕 **IntegrationApiKey** - управление API ключами для маркетплейсов  
+
+### Архитектурные решения
+
+- **Универсальность**: API работает с любыми маркетплейсами через `source_system`
+- **Модульная структура**: новые модули интегрируются в существующую архитектуру
+- **Entity связи**: `Transportation` → `CourierRoutePoint` → `CourierRouteOrder` → `CourierRoutePosition`
+- **Асинхронная обработка**: очередь + scheduler для отправки результатов в маркетплейсы
+- **Логирование**: все интеграционные вызовы логируются в `courier_integration_log`
+- **Аудит**: все изменения маршрутов фиксируются в `courier_route_log`
+- **Безопасность**: API Key аутентификация (отдельный ключ для каждого маркетплейса)
+
+---
+
+## 📊 Статистика задачи
+
+**Новые таблицы БД**: 7 (включая `integration_api_keys`)  
+**Обновленные таблицы**: 2  
+**Новые Entity классы**: 7  
+**Новые Enum классы**: 10 (включая `MarketplaceType`)  
+**Новые Repository**: 7  
+**Новые Service**: 6 (включая `ApiKeyService`)  
+**Новые Controller**: 4 (включая `ApiKeyManagementController`)  
+**Flyway миграции**: 11  
+**API endpoints**: ~40  
+
+**Поддерживаемые маркетплейсы**: TEEZ_PVZ, Kaspi, Wildberries, Ozon (расширяемо)  
+
+**Примерная оценка**: 
+- Полная реализация: 6 недель (2-3 разработчика) или 10-14 недель (1 разработчик)
+- ⭐ **MVP с переиспользованием**: 2-3 недели (1 разработчик) - см. документы 10-11
+
+---
+
+## 🔗 Связанные документы
+
+- **ТЗ**: `/coube-documentation/business_analysis/converted/Проект решения Coube-Teez.md`
+- **Архитектура БД**: `/coube-documentation/database-architecture/database-architecture-auto-generated.md`
+- **Текущий backend**: `/coube-backend/src/main/java/kz/coube/backend/`
+
+---
+
+## 🚀 Быстрый старт для разработчиков
+
+1. **Изучить документацию**:
+   ```bash
+   cat README.md
+   cat 06-backend-integration-plan.md
+   ```
+
+2. **Начать с БД**:
+   ```bash
+   cat 01-database-changes.md
+   # Создать миграции в /src/main/resources/db/migration/
+   ./gradlew flywayMigrate
+   ```
+
+3. **Следовать чеклисту**:
+   ```bash
+   cat 07-implementation-checklist.md
+   # Отмечать выполненные задачи
+   ```
+
+4. **Тестировать API**:
+   ```bash
+   cat 02-api-incoming-waybills.md
+   cat 04-api-web-logist.md
+   cat 05-api-mobile-courier.md
+   # Использовать примеры для Postman/Swagger
+   ```
+
+---
+
+## ✅ Чеклист готовности
+
+- ✅ Все изменения в БД описаны
+- ✅ Все API endpoints спецификированы с примерами
+- ✅ План интеграции в существующий backend создан
+- ✅ Учтены текущие компоненты (DriverController, TransportationType, KeycloakRole)
+- ✅ Детальный чеклист для разработчиков создан
+- ✅ Миграции пронумерованы
+- ✅ Поэтапный план внедрения определен
+
+---
+
+## 📞 Контакты и вопросы
+
+Для вопросов по реализации обращаться к:
+- **Tech Lead**: Backend Team Lead
+- **Product Owner**: Заказчик проекта Coube-Teez
+- **TEEZ Integration**: Команда разработки TEEZ_PVZ
+
+---
+
+**Дата создания**: 2025-01-06  
+**Версия документации**: 1.0  
+**Статус**: Ready for Development

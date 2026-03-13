@@ -1,0 +1,105 @@
+# Сводка обновлений курьерской доставки MVP
+## Дата обновления: 2025-10-24
+
+## 📋 Ключевые изменения
+
+### 1. ❌ Удалено поле `teezPostId`
+- **Было**: Использовались два поля - `externalId` и `teezPostId`
+- **Стало**: Используется только `externalId` для всех систем
+- **Затронутые файлы**: API примеры, DTO, сервисы
+
+### 2. 🔑 Изменена идентификация заявок
+- **Было**: Идентификация только по `externalWaybillId`
+- **Стало**: Идентификация по комбинированному ключу:
+  - `externalWaybillId` + `sourceSystem` + `orgId`
+- **Причина**: Уникальность заявки гарантируется только в рамках организации
+- **Новое поле**: Добавлено `orgId` в таблицу `transportation`
+
+### 3. 🔄 Переименовано поле склада
+- **Было**: `responsibleWarehouseId` или `responsible_courier_warehouse_id`
+- **Стало**: `warehouseExternalId`
+- **Формат**: camelCase во всех полях API
+
+### 4. 🐫 Все поля API приведены к camelCase
+- **Примеры изменений**:
+  - `delivery_type` → `deliveryType`
+  - `is_sms_required` → `isSmsRequired`
+  - `position_code` → `positionCode`
+  - `track_number` → `trackNumber`
+
+### 5. ➕ Добавлен метод реимпорта
+- **Endpoint**: `POST /api/v1/integration/waybills/reimport`
+- **Кто вызывает**: Внешняя система TEEZ (через API Key)
+- **Что делает**: Полная замена всех данных маршрутного листа
+- **Ограничения**:
+  - Только для маршрутов в статусе IMPORTED
+  - До любых изменений из UI
+  - Только из той же системы-источника
+- **Идентификация**: По комбинации `externalWaybillId + sourceSystem + orgId`
+
+**❗ ВАЖНО**: Это НЕ то же самое, что `PUT /api/v1/courier/waybills/{id}` для редактирования логистом!
+
+### 6. 📝 Обновлена валидация менеджера контактов
+- **Поле**: `responsibleManagerContactInfo`
+- **Для TEEZ**: Необязательное поле
+- **Для других клиентов**: Обязательное поле
+- **Валидация**: Проверка в `CourierIntegrationService.importWaybill()`
+
+## 📁 Обновленные файлы
+
+### 1. **01-mvp-plan.md**
+- ✅ Добавлено поле `orgId` в Transportation entity
+- ✅ Обновлена миграция БД с составным индексом
+- ✅ Добавлен метод `reimportWaybill()` в CourierIntegrationService
+- ✅ Добавлена валидация для responsibleManagerContactInfo
+
+### 2. **02-implementation-checklist.md**
+- ✅ Добавлено поле `org_id` в миграцию
+- ✅ Составной индекс на `external_waybill_id + source_system + org_id`
+- ✅ Добавлен метод реимпорта в сервис и контроллер
+- ✅ Обновлены тесты для реимпорта
+- ✅ Добавлена валидация для TEEZ
+
+### 3. **03-api-examples.md**
+- ✅ Все поля переименованы в camelCase
+- ✅ Убрано поле `teezPostId` из примеров
+- ✅ Добавлен пример метода реимпорта (раздел 1.1)
+- ✅ Добавлено поле `orgId` во все примеры
+- ✅ Обновлено поле `warehouseExternalId`
+
+## 🔄 Миграция БД
+
+### Новые поля в `transportation`:
+```sql
+ALTER TABLE applications.transportation
+ADD COLUMN IF NOT EXISTS org_id TEXT;
+
+-- Составной индекс для уникальной идентификации
+CREATE INDEX IF NOT EXISTS idx_transportation_external_waybill
+ON applications.transportation(external_waybill_id, source_system, org_id)
+WHERE transportation_type = 'COURIER_DELIVERY';
+```
+
+## 🧪 Новые тесты
+
+### CourierIntegrationServiceTest:
+- Тест идентификации по комбинированному ключу
+- Тест успешного реимпорта IMPORTED статуса
+- Тест блокировки реимпорта после изменений из UI
+- Тест блокировки реимпорта из другой системы
+- Тест необязательного поля responsibleManagerContactInfo для TEEZ
+
+### CourierIntegrationControllerIT:
+- Тест POST /waybills/reimport с валидным payload
+- Тест возврата 403 Forbidden при блокировке реимпорта
+
+## ⚠️ Важные моменты для разработки
+
+1. **Обратная совместимость**: Старые записи без `orgId` могут требовать миграции данных
+2. **Валидация источника**: При реимпорте обязательно проверять совпадение `sourceSystem`
+3. **Составной ключ**: При всех операциях поиска использовать полный ключ
+4. **TEEZ особенность**: Помнить о необязательности `responsibleManagerContactInfo` только для TEEZ
+
+## 📝 Примечания
+
+Все изменения согласованы с аналитиком и отражены в обновленном документе `Проект решения Coube-Teez_v2.md`
