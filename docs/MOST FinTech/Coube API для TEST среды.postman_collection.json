@@ -1,0 +1,412 @@
+{
+  "info": {
+    "_postman_id": "138c66d6-6709-42a5-9fa3-e0fe18875024",
+    "name": "Coube API для партнёров",
+    "description": "Коллекция создана по docs/api_coube.md. Базовый путь: /api/v1/coube. Все вызовы по HTTPS с обязательным заголовком X-API-Key.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "7868406"
+  },
+  "item": [
+    {
+      "name": "GET /client",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/client?tax_id=240940029297",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "client"
+          ],
+          "query": [
+            {
+              "key": "tax_id",
+              "value": "240940029297"
+            }
+          ]
+        },
+        "description": "Возвращает информацию о клиенте по tax_id."
+      },
+      "response": []
+    },
+    {
+      "name": "POST /client",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "environment",
+              "value": "{{environment}}",
+              "type": "text"
+            },
+            {
+              "key": "tax_id",
+              "value": "{{tax_id}}",
+              "type": "text"
+            },
+            {
+              "key": "title",
+              "value": "{{title}}",
+              "type": "text"
+            },
+            {
+              "key": "address",
+              "value": "{{address}}",
+              "type": "text"
+            },
+            {
+              "key": "role",
+              "value": "{{role}}",
+              "type": "text"
+            },
+            {
+              "key": "ceo_fullname",
+              "value": "{{ceo_fullname}}",
+              "type": "text"
+            },
+            {
+              "key": "ceo_phone",
+              "value": "{{ceo_phone}}",
+              "type": "text"
+            },
+            {
+              "key": "ceo_email",
+              "value": "{{ceo_email}}",
+              "type": "text"
+            },
+            {
+              "key": "contact_fullname",
+              "value": "{{contact_fullname}}",
+              "type": "text"
+            },
+            {
+              "key": "contact_phone",
+              "value": "{{contact_phone}}",
+              "type": "text"
+            },
+            {
+              "key": "contact_email",
+              "value": "{{contact_email}}",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/client",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "client"
+          ]
+        },
+        "description": "Регистрирует нового клиента в системе (multipart/form-data)."
+      },
+      "response": []
+    },
+    {
+      "name": "GET /factoring",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/factoring?application_number={{application_number}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "factoring"
+          ],
+          "query": [
+            {
+              "key": "application_number",
+              "value": "{{application_number}}"
+            }
+          ]
+        },
+        "description": "Возвращает текущий статус факторинговой заявки по номеру."
+      },
+      "response": []
+    },
+    {
+      "name": "POST /factoring",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "environment",
+              "value": "{{environment}}",
+              "type": "text"
+            },
+            {
+              "key": "coube_application_id",
+              "value": "{{coube_application_id}}",
+              "type": "text"
+            },
+            {
+              "key": "carrier_tax_id",
+              "value": "{{carrier_tax_id}}",
+              "type": "text"
+            },
+            {
+              "key": "carrier_iban",
+              "value": "{{carrier_iban}}",
+              "type": "text"
+            },
+            {
+              "key": "carrier_contact_fullname",
+              "value": "{{carrier_contact_fullname}}",
+              "type": "text"
+            },
+            {
+              "key": "carrier_contact_phone",
+              "value": "{{carrier_contact_phone}}",
+              "type": "text"
+            },
+            {
+              "key": "carrier_contact_email",
+              "value": "{{carrier_contact_email}}",
+              "type": "text"
+            },
+            {
+              "key": "customer_tax_id",
+              "value": "{{customer_tax_id}}",
+              "type": "text"
+            },
+            {
+              "key": "customer_contact_fullname",
+              "value": "{{customer_contact_fullname}}",
+              "type": "text"
+            },
+            {
+              "key": "customer_contact_phone",
+              "value": "{{customer_contact_phone}}",
+              "type": "text"
+            },
+            {
+              "key": "customer_contact_email",
+              "value": "{{customer_contact_email}}",
+              "type": "text"
+            },
+            {
+              "key": "service_amount",
+              "value": "{{service_amount}}",
+              "type": "text"
+            },
+            {
+              "key": "factoring_amount",
+              "value": "{{factoring_amount}}",
+              "type": "text"
+            },
+            {
+              "key": "tariff",
+              "value": "{{tariff}}",
+              "type": "text"
+            },
+            {
+              "key": "factoring_agreement",
+              "type": "file",
+              "src": "{{factoring_agreement_file}}"
+            },
+            {
+              "key": "factoring_payout",
+              "type": "file",
+              "src": "{{factoring_payout_file}}"
+            },
+            {
+              "key": "otp_validation",
+              "type": "file",
+              "src": "{{otp_validation_file}}"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/factoring",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "factoring"
+          ]
+        },
+        "description": "Создаёт новую факторинговую заявку (multipart/form-data)."
+      },
+      "response": []
+    },
+    {
+      "name": "PUT /factoring",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "environment",
+              "value": "{{environment}}",
+              "type": "text"
+            },
+            {
+              "key": "coube_application_id",
+              "value": "{{coube_application_id}}",
+              "type": "text"
+            },
+            {
+              "key": "application_number",
+              "value": "{{application_number}}",
+              "type": "text"
+            },
+            {
+              "key": "carrier_tax_id",
+              "value": "{{carrier_tax_id}}",
+              "type": "text"
+            },
+            {
+              "key": "carrier_iban",
+              "value": "{{carrier_iban}}",
+              "type": "text"
+            },
+            {
+              "key": "customer_tax_id",
+              "value": "{{customer_tax_id}}",
+              "type": "text"
+            },
+            {
+              "key": "service_amount",
+              "value": "{{service_amount}}",
+              "type": "text"
+            },
+            {
+              "key": "factoring_amount",
+              "value": "{{factoring_amount}}",
+              "type": "text"
+            },
+            {
+              "key": "tariff",
+              "value": "{{tariff}}",
+              "type": "text"
+            },
+            {
+              "key": "avr",
+              "type": "file",
+              "src": "{{avr_file}}"
+            },
+            {
+              "key": "contract",
+              "type": "file",
+              "src": "{{contract_file}}"
+            },
+            {
+              "key": "invoice",
+              "type": "file",
+              "src": "{{invoice_file}}"
+            },
+            {
+              "key": "cms",
+              "type": "file",
+              "src": "{{cms_file}}"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/factoring",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "factoring"
+          ]
+        },
+        "description": "Обновляет существующую заявку, загружает документы и переводит статус в processing."
+      },
+      "response": []
+    }
+  ],
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "value",
+        "value": "{{api_key}}",
+        "type": "string"
+      },
+      {
+        "key": "key",
+        "value": "X-api-key",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://testcf.mfomost.kz/api/v1/coube"
+    },
+    {
+      "key": "api_key",
+      "value": "7hDa3pXnQkLMV2rTyUz8JcWbNsFqReH1"
+    }
+  ]
+}
