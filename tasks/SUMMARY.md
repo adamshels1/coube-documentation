@@ -71,6 +71,28 @@
 
 ---
 
+## Фича 3: Подключение факторинга в мобильном приложении
+
+> Аналог функционала из `OrganizationContainer.vue` (веб-фронтенд), только для мобилки.
+> Документация: `tasks/factoring-mobile-onboarding/`
+
+### Mobile (5 задач)
+
+| ID | Задача | Приоритет | Зависит от |
+|----|--------|-----------|-----------|
+| TASK-FACT-MOB-1 | API эндпоинты и типы (`api/index.ts`, `api/types.ts`) | 🔴 | — |
+| TASK-FACT-MOB-2 | Блок факторинга в `MyCompanyScreen.tsx` | 🔴 | MOB-1 |
+| TASK-FACT-MOB-3 | Новый экран `FactoringOnboardingScreen.tsx` (PDF + eGov) | 🔴 | MOB-1 |
+| TASK-FACT-MOB-4 | Навигация (`RootStack.tsx`, `types.ts`) | 🔴 | MOB-3 |
+| TASK-FACT-MOB-5 | Переводы `ru-RU.json`, `en-US.json` | 🟡 | MOB-2,3 |
+
+### Порядок реализации
+```
+TASK-FACT-MOB-1 → MOB-2 + MOB-3 (параллельно) → MOB-4 → MOB-5
+```
+
+---
+
 ## Порядок реализации (рекомендуемый)
 
 ```
