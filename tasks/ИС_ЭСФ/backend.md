@@ -22,6 +22,91 @@
 
 ---
 
+## Flow работы (полная картина)
+
+Coube — платформа. У каждого перевозчика своя ЭЦП. Приватный ключ никогда не покидает устройство перевозчика.
+
+```
+ПЕРЕВОЗЧИК                  COUBE BACKEND                    КГД (ИС ЭСФ)
+(веб / мобилка)                    │                               │
+      │                            │                               │
+      │  1. Перевозка завершена,   │                               │
+      │     АВР подписан обеими    │                               │
+      │     сторонами              │                               │
+      │                            │                               │
+      │── GET /esf/invoices/{id}/auth-ticket ──────────────────►  │
+      │                            │                               │
+      │                   2. Формирует ESF XML                     │
+      │                      (InvoiceToEsfMapper)                  │
+      │                            │                               │
+      │                   3. Запрашивает тикет авторизации         │
+      │                      AuthService.createAuthTicket(ИИН) ───►│
+      │                            │◄── authTicketXml ─────────────│
+      │                            │                               │
+      │◄── { authTicketXml, esfXml } ──────────────────────────── │
+      │                            │                               │
+      │  4. Подписывает authTicketXml своей ЭЦП                   │
+      │     Подписывает esfXml своей ЭЦП                          │
+      │     (NCALayer на вебе / NCAMobile на мобилке)             │
+      │                            │                               │
+      │── POST /esf/invoices/{id}/send ────────────────────────►  │
+      │   { signedXml, signedAuthTicket }                          │
+      │                            │                               │
+      │                   5. Открывает сессию в КГД               │
+      │                      createSessionSigned(BIN,              │
+      │                        signedAuthTicket) ─────────────────►│
+      │                            │◄── sessionId ─────────────────│
+      │                            │                               │
+      │                   6. Отправляет ЭСФ                       │
+      │                      sendInvoice(sessionId, signedXml) ───►│
+      │                            │◄── registrationNumber ────────│
+      │                            │                               │
+      │                   7. Закрывает сессию                      │
+      │                      closeSession(sessionId) ─────────────►│
+      │                            │                               │
+      │                   8. Сохраняет в esf_documents:            │
+      │                      status = SENT                         │
+      │                      registrationNumber = "..."            │
+      │                            │                               │
+      │◄── EsfStatusResponse ──────│                               │
+      │    (статус + рег. номер)   │                               │
+      │                            │                               │
+      │                   Scheduler (каждые 5 мин)                 │
+      │                   queryInvoiceStatus(regNumber) ──────────►│
+      │                            │◄── DELIVERED ─────────────────│
+      │                   status = DELIVERED                        │
+
+── ── ── ── ── ── ── ОШИБКА ── ── ── ── ── ── ── ── ── ──
+
+      │                            │◄── EsfApiException ───────────│
+      │                   status = DECLINED                         │
+      │                   errorCode + errorMessage сохранены        │
+      │◄── ошибка с деталями ──────│                               │
+```
+
+### Статусы EsfDocument
+
+```
+NOT_SENT → SENDING → SENT → DELIVERED
+                   → DECLINED   (ошибка КГД)
+         DELIVERED → CANCELLED  (отзыв)
+```
+
+### Какой таск за что отвечает
+
+| Таск | Отвечает за |
+|------|-------------|
+| BE-1 | ESF SDK подключён в проект |
+| BE-2 | Таблица `esf_documents` в БД |
+| BE-3 | Entity + Repository для EsfDocument |
+| BE-4 | `getAuthTicket` + `openSessionSigned` (шаги 3, 5, 7) |
+| BE-5 | Формирование ESF XML из Invoice (шаг 2) |
+| BE-6 | Основная логика отправки (шаги 5–8) |
+| BE-7 | API endpoints (`/auth-ticket`, `/send`, `/status`, `/cancel`) |
+| BE-8 | Scheduler синхронизации статусов |
+
+---
+
 ## TASK-ESF-BE-1: Установить ESF SDK как локальные Maven зависимости
 
 **Приоритет:** 🔴 Критический (блокирует весь ESF backend)
@@ -173,41 +258,40 @@ public interface EsfDocumentRepository extends JpaRepository<EsfDocument, Long> 
 **Приоритет:** 🔴 Критический
 **Зависит от:** TASK-ESF-BE-1
 
+### Контекст
+
+Coube — платформа, у каждого перевозчика своя ЭЦП. Coube не хранит приватные ключи клиентов.
+
+Используется `createSessionSigned` (КГД документация, раздел 2.1, метод 7):
+- Бэкенд получает тикет от `AuthService.createAuthTicket`
+- Перевозчик подписывает тикет своей ЭЦП на клиенте (NCALayer / NCAMobile)
+- Бэкенд открывает сессию через подписанный тикет — приватный ключ на сервер не передаётся
+
 ### Что сделать
 
-Сессионный менеджер для ИС ЭСФ. Сессии краткоживущие — открывать перед операцией, закрывать после.
-
+**1. Получить тикет для подписания (вызывается первым):**
 ```java
 // esf/client/EsfSessionService.java
-@Service
+// Используем @Flow — cross-module логика (esf + signature + invoice)
+@Flow
 @Slf4j
 public class EsfSessionService {
 
-    // Из конфига: esf.api.url, esf.cert.path, esf.cert.password
-    @Value("${esf.api.url}")
-    private String esfApiUrl;
+    // Шаг 1: получить XML тикет для подписания на клиенте
+    // Вызвать AuthService.createAuthTicket(iin) → вернуть authTicketXml
+    public String getAuthTicket(String iin) {
+        // AuthService.createAuthTicket(iin) → authTicketXml
+    }
 
-    // Открыть сессию с подписью ЭЦП
-    public String openSession(String tin) {
-        // 1. Загрузить сертификат организации (p12)
-        // 2. Подписать XML запроса через Kalkan (уже есть в signature/)
-        // 3. Вызвать SessionService.createSession через SOAP
-        // 4. Вернуть sessionId
+    // Шаг 2: открыть сессию через уже подписанный тикет
+    // signedAuthTicket — XML Dsig, подписанный клиентом (NCALayer/NCAMobile)
+    public String openSessionSigned(String tin, String signedAuthTicket) {
+        // SessionService.createSessionSigned(tin, signedAuthTicket) → sessionId
     }
 
     // Закрыть сессию
     public void closeSession(String sessionId) {
         // SessionService.closeSession(sessionId)
-    }
-
-    // Выполнить операцию в рамках сессии
-    public <T> T withSession(String tin, Function<String, T> operation) {
-        String sessionId = openSession(tin);
-        try {
-            return operation.apply(sessionId);
-        } finally {
-            closeSession(sessionId);
-        }
     }
 }
 ```
@@ -218,13 +302,13 @@ esf:
   api:
     url: https://esf.gov.kz:8443/esf-web/ws/api1   # prod
     # url: https://esf.gov.kz:8080/esf-web/ws/api1  # test
-  cert:
-    path: ${ESF_CERT_PATH}      # путь к .p12 файлу
-    password: ${ESF_CERT_PASS}  # пароль к сертификату
 ```
 
+> Сертификат Coube не нужен — сессия открывается от имени перевозчика через его подписанный тикет.
+
 ### Критерии готовности
-- [ ] Успешно открывает сессию на тестовом стенде
+- [ ] `getAuthTicket(iin)` возвращает XML тикет от КГД
+- [ ] `openSessionSigned(tin, signedAuthTicket)` успешно открывает сессию на тестовом стенде
 - [ ] Закрывает сессию при любом исходе (finally)
 - [ ] Логирует sessionId для отладки (без sensitive данных)
 
@@ -246,8 +330,8 @@ public class InvoiceToEsfMapper {
 
     public String toEsfXml(Invoice invoice) {
         // Маппинг полей:
-        // invoice.executorOrganization.bin → seller.tin
-        // invoice.customerOrganization.bin → customer.tin
+        // invoice.executorOrganization.iinBin → seller.tin
+        // invoice.customerOrganization.iinBin → customer.tin
         // invoice.invoiceNumber           → invoiceNum
         // invoice.documentDate            → invoiceDate
         // invoice.transportations[0].completedAt → turnoverDate
@@ -284,18 +368,21 @@ public class InvoiceToEsfMapper {
 
 ```java
 // esf/service/EsfSendingService.java
-@Service
+// Используем @Flow — cross-module логика (esf + invoice + organization)
+@Flow
 @Transactional
 @Slf4j
 public class EsfSendingService {
 
-    public EsfDocument sendInvoice(Long invoiceId) {
+    // signedXml         — ESF XML, подписанный перевозчиком на клиенте (NCALayer/NCAMobile)
+    // signedAuthTicket  — тикет авторизации, подписанный перевозчиком на клиенте
+    public EsfDocument sendInvoice(Long invoiceId, String signedXml, String signedAuthTicket) {
         Invoice invoice = invoiceRepository.findById(invoiceId)
             .orElseThrow(() -> new EntityNotFoundException("Invoice not found: " + invoiceId));
 
         // Проверки
-        if (invoice.getStatus() != DocumentStatus.SIGNED_BY_CUSTOMER) {
-            throw new BusinessException("Счёт должен быть подписан заказчиком перед отправкой ЭСФ");
+        if (invoice.getStatus() != DocumentStatus.SIGNED) {
+            throw new BusinessException("ЭСФ можно отправить только после подписания счёта обеими сторонами");
         }
 
         EsfDocument esfDoc = esfDocumentRepository.findByInvoiceId(invoiceId)
@@ -305,25 +392,20 @@ public class EsfSendingService {
             throw new BusinessException("ЭСФ уже был успешно отправлен");
         }
 
-        // Формируем XML
-        String xml = invoiceToEsfMapper.toEsfXml(invoice);
-
-        // Подписываем через Kalkan (существующий SignatureService)
-        String signedXml = signatureService.signXml(xml, invoice.getExecutorOrganization());
-
-        // Отправляем через сессию
-        String tin = invoice.getExecutorOrganization().getBin();
+        String tin = invoice.getExecutorOrganization().getIinBin();
+        String sessionId = null;
         try {
             esfDoc.setStatus(EsfStatus.SENDING);
-            esfDoc.setXmlBody(xml);
+            esfDoc.setXmlBody(signedXml);
             esfDocumentRepository.save(esfDoc);
 
-            String regNumber = esfSessionService.withSession(tin, sessionId ->
-                esfApiClient.sendInvoice(sessionId, signedXml)
-            );
+            // Открываем сессию через подписанный тикет перевозчика
+            sessionId = esfSessionService.openSessionSigned(tin, signedAuthTicket);
+
+            String regNumber = esfApiClient.sendInvoice(sessionId, signedXml);
 
             esfDoc.setRegistrationNumber(regNumber);
-            esfDoc.setStatus(EsfStatus.DELIVERED);
+            esfDoc.setStatus(EsfStatus.SENT);
             esfDoc.setSentAt(LocalDateTime.now());
 
         } catch (EsfApiException e) {
@@ -331,6 +413,8 @@ public class EsfSendingService {
             esfDoc.setErrorCode(e.getErrorCode());
             esfDoc.setErrorMessage(e.getMessage());
             log.error("ESF sending failed for invoice {}: {}", invoiceId, e.getMessage());
+        } finally {
+            if (sessionId != null) esfSessionService.closeSession(sessionId);
         }
 
         esfDoc.setLastSyncAt(LocalDateTime.now());
@@ -357,14 +441,28 @@ public class EsfSendingService {
 
 ```java
 // esf/controller/EsfController.java
+// Паттерн как в InvoiceController — @AuthorizationRequired + @RequireOrganizationHeader
 @RestController
 @RequestMapping("/api/v1/esf")
 @RequiredArgsConstructor
+@AuthorizationRequired(
+    roles = { KeycloakRole.CEO, KeycloakRole.ACCOUNTANT, KeycloakRole.SIGNER },
+    companyTypes = { CompanyType.EXECUTOR }  // только перевозчик выставляет ЭСФ
+)
+@RequireOrganizationHeader
 public class EsfController {
 
-    // Отправить ЭСФ для счёта
+    // Шаг 1: получить XML тикет для подписания на клиенте (NCALayer / NCAMobile)
+    // Фронт/мобилка подписывают его ЭЦП перевозчика и передают в /send
+    @GetMapping("/invoices/{invoiceId}/auth-ticket")
+    public ResponseEntity<AuthTicketResponse> getAuthTicket(@PathVariable Long invoiceId) { ... }
+
+    // Шаг 2: отправить ЭСФ — принимает уже подписанные данные от клиента
     @PostMapping("/invoices/{invoiceId}/send")
-    public ResponseEntity<EsfStatusResponse> sendInvoice(@PathVariable Long invoiceId) { ... }
+    public ResponseEntity<EsfStatusResponse> sendInvoice(
+        @PathVariable Long invoiceId,
+        @RequestBody EsfSendRequest request  // signedXml + signedAuthTicket
+    ) { ... }
 
     // Получить статус ЭСФ для счёта
     @GetMapping("/invoices/{invoiceId}/status")
@@ -376,8 +474,20 @@ public class EsfController {
 }
 ```
 
-**Response DTO:**
+**Request / Response DTO:**
 ```java
+// Запрос на отправку — клиент передаёт подписанные данные
+public record EsfSendRequest(
+    String signedXml,          // ESF XML подписанный ЭЦП перевозчика
+    String signedAuthTicket    // Тикет авторизации подписанный ЭЦП перевозчика
+) {}
+
+// Тикет для подписания на клиенте
+public record AuthTicketResponse(
+    String authTicketXml,      // XML тикет от КГД — клиент подписывает и возвращает в /send
+    String esfXml              // ESF XML — клиент подписывает и возвращает в /send
+) {}
+
 public record EsfStatusResponse(
     Long invoiceId,
     EsfStatus status,
@@ -398,7 +508,8 @@ public record InvoiceResponse(
 ```
 
 ### Критерии готовности
-- [ ] POST `/esf/invoices/{id}/send` — отправляет ЭСФ
+- [ ] GET `/esf/invoices/{id}/auth-ticket` — возвращает XML тикет и ESF XML для подписания
+- [ ] POST `/esf/invoices/{id}/send` — принимает signedXml + signedAuthTicket, отправляет в КГД
 - [ ] GET `/esf/invoices/{id}/status` — возвращает текущий статус
 - [ ] POST `/esf/invoices/{id}/cancel` — отзывает ЭСФ
 - [ ] InvoiceResponse включает esfStatus
